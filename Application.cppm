@@ -7,6 +7,7 @@ export module Kairo.EngineCore.Application;
 import Kairo.EngineCore.Scene;
 import Kairo.EngineCore.Time;
 import Kairo.EngineCore.Event;
+import Kairo.EngineCore.Input;
 import Kairo.EngineCore.Layer;
 export namespace kairo::engine
 {
@@ -18,6 +19,8 @@ export namespace kairo::engine
     public:
         [[nodiscard]] Scene& ActiveScene() noexcept { return m_Scene; }
         [[nodiscard]] const FrameClock& Clock() const noexcept { return m_Clock; }
+        [[nodiscard]] InputState& Input() noexcept { return m_Input; }
+        [[nodiscard]] const InputState& Input() const noexcept { return m_Input; }
         void PushLayer(std::unique_ptr<Layer> layer)
         {
             if (!layer) throw std::invalid_argument("Application cannot own a null layer.");
@@ -26,17 +29,20 @@ export namespace kairo::engine
         }
         void RunFrame()
         {
+            m_Input.BeginFrame();
             m_Clock.Tick();
             for (const auto& layer : m_Layers) layer->OnUpdate(m_Clock.DeltaSeconds());
         }
         void Dispatch(Event& event)
         {
+            m_Input.Consume(event);
             for (auto it = m_Layers.rbegin(); it != m_Layers.rend() && !event.Handled; ++it) (*it)->OnEvent(event);
         }
         ~Application() { for (auto it = m_Layers.rbegin(); it != m_Layers.rend(); ++it) (*it)->OnDetach(); }
     private:
         Scene m_Scene;
         FrameClock m_Clock;
+        InputState m_Input;
         std::vector<std::unique_ptr<Layer>> m_Layers;
     };
 }

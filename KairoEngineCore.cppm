@@ -5,6 +5,7 @@ export import Kairo.EngineCore.RuntimeComponents;
 export import Kairo.EngineCore.Scene;
 export import Kairo.EngineCore.Time;
 export import Kairo.EngineCore.Event;
+export import Kairo.EngineCore.Input;
 export import Kairo.EngineCore.Layer;
 export import Kairo.EngineCore.Logger;
 export import Kairo.EngineCore.JobSystem;

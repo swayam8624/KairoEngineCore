@@ -10,7 +10,7 @@ KairoMath -> KairoEngineCore -> KairoRenderer / KairoPhysicsEngine adapters
 
 V1 provides stable `Entity` IDs, a scene registry, name/transform/runtime
 components, a monotonic frame clock, typed events/layers, a bounded thread-safe
-logger, and a fixed worker job system. Renderer and physics bindings remain
+logger, a fixed worker job system, and platform-neutral input state. Renderer and physics bindings remain
 outside the core so each backend can preserve its own lifetime rules.
 
 ```bash

@@ -53,6 +53,26 @@ TEST_CASE("Engine events retain typed payload and handled state", "[KairoEngineC
     CHECK(resize.Handled);
 }
 
+TEST_CASE("Application owns platform-neutral held and frame-scoped input", "[KairoEngineCore][Input]")
+{
+    Application app;
+    Event press{ EventType::KeyPressed, false, static_cast<std::int32_t>(KeyCode::Space) };
+    app.Dispatch(press);
+    CHECK(app.Input().IsKeyDown(KeyCode::Space));
+    Event mouse{ EventType::MouseMoved, false, 40, 20 };
+    Event scroll{ EventType::MouseScrolled, false, 0, 3 };
+    app.Dispatch(mouse);
+    app.Dispatch(scroll);
+    CHECK(app.Input().MousePosition().X == 40.0f);
+    CHECK(app.Input().ScrollDelta().Y == 3.0f);
+    app.RunFrame();
+    CHECK(app.Input().MouseDelta().X == 0.0f);
+    CHECK(app.Input().ScrollDelta().Y == 0.0f);
+    Event release{ EventType::KeyReleased, false, static_cast<std::int32_t>(KeyCode::Space) };
+    app.Dispatch(release);
+    CHECK_FALSE(app.Input().IsKeyDown(KeyCode::Space));
+}
+
 TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngineCore][Components]")
 {
     MeshRendererComponent mesh{ "mesh/cube", "material/default", true };
