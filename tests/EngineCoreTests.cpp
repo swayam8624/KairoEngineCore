@@ -51,3 +51,15 @@ TEST_CASE("Engine events retain typed payload and handled state", "[KairoEngineC
     resize.Handled = true;
     CHECK(resize.Handled);
 }
+
+TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngineCore][Components]")
+{
+    MeshRendererComponent mesh{ "mesh/cube", "material/default", true };
+    REQUIRE_NOTHROW(mesh.Validate());
+    mesh.MaterialAsset.clear();
+    REQUIRE_THROWS(mesh.Validate());
+    CameraComponent camera;
+    REQUIRE_NOTHROW(camera.Validate());
+    camera.FarPlane = camera.NearPlane;
+    REQUIRE_THROWS(camera.Validate());
+}
