@@ -15,6 +15,9 @@ outside the core so each backend can preserve its own lifetime rules.
 
 Scene enumeration returns stable entity IDs in ascending creation order so
 hierarchies, serializers, and systems do not depend on unordered storage order.
+Scenes own optional mesh renderer, camera, rigid-body, and collider components.
+`RenderableEntities()` filters visible meshes deterministically for renderer
+extraction while asset resolution and GPU resources remain adapter-owned.
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++

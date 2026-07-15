@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include <atomic>
 #include <memory>
+#include <stdexcept>
+#include <vector>
 import Kairo.EngineCore;
 using namespace kairo::engine;
 TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
@@ -88,6 +90,37 @@ TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngin
     REQUIRE_NOTHROW(camera.Validate());
     camera.FarPlane = camera.NearPlane;
     REQUIRE_THROWS(camera.Validate());
+}
+
+TEST_CASE("Scene owns optional runtime components and stable render extraction", "[KairoEngineCore][Scene][Components]")
+{
+    Scene scene;
+    const Entity hidden = scene.CreateEntity("Hidden");
+    const Entity visible = scene.CreateEntity("Visible");
+    const Entity camera = scene.CreateEntity("Camera");
+
+    scene.SetMeshRenderer(hidden, { "mesh/cube", "material/default", false });
+    scene.SetMeshRenderer(visible, { "mesh/cube", "material/default", true });
+    scene.SetCamera(camera, CameraComponent{ .Primary = true });
+    scene.SetRigidBody(visible, { 0u });
+    scene.SetCollider(visible, { 0u });
+
+    REQUIRE(scene.HasMeshRenderer(visible));
+    CHECK(scene.MeshRenderer(visible).MeshAsset == "mesh/cube");
+    REQUIRE(scene.HasCamera(camera));
+    CHECK(scene.Camera(camera).Primary);
+    CHECK(scene.RigidBody(visible).Body == 0u);
+    CHECK(scene.Collider(visible).Collider == 0u);
+    CHECK(scene.RenderableEntities() == std::vector<Entity>{ visible });
+
+    MeshRendererComponent invalid{ "mesh/cube", "", true };
+    REQUIRE_THROWS_AS(scene.SetMeshRenderer(visible, invalid), std::invalid_argument);
+    CHECK(scene.MeshRenderer(visible).MaterialAsset == "material/default");
+
+    CHECK(scene.RemoveMeshRenderer(visible));
+    CHECK_FALSE(scene.RemoveMeshRenderer(visible));
+    CHECK_FALSE(scene.HasMeshRenderer(visible));
+    REQUIRE_THROWS_AS(scene.MeshRenderer(visible), std::logic_error);
 }
 
 TEST_CASE("Logger preserves ordering and bounded diagnostic history", "[KairoEngineCore][Logger]")

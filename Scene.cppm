@@ -1,12 +1,15 @@
 module;
 #include <algorithm>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 export module Kairo.EngineCore.Scene;
 import Kairo.EngineCore.Entity;
 import Kairo.EngineCore.Components;
+import Kairo.EngineCore.RuntimeComponents;
 export namespace kairo::engine
 {
     /// Input: named entity requests and component updates. Output: a stable
@@ -15,7 +18,14 @@ export namespace kairo::engine
     class Scene final
     {
     public:
-        [[nodiscard]] Entity CreateEntity(std::string name = "Entity") { const Entity id{ m_Next++ }; m_Entities.emplace(id.Value, Record{ std::move(name), {} }); return id; }
+        [[nodiscard]] Entity CreateEntity(std::string name = "Entity")
+        {
+            const Entity id{ m_Next++ };
+            Record record;
+            record.Name.Value = std::move(name);
+            m_Entities.emplace(id.Value, std::move(record));
+            return id;
+        }
         void DestroyEntity(Entity entity) { if (m_Entities.erase(entity.Value) == 0u) throw std::out_of_range("Scene does not contain this entity."); }
         [[nodiscard]] bool Contains(Entity entity) const noexcept { return m_Entities.contains(entity.Value); }
         [[nodiscard]] std::size_t Size() const noexcept { return m_Entities.size(); }
@@ -34,11 +44,118 @@ export namespace kairo::engine
         [[nodiscard]] const TransformComponent& Transform(Entity entity) const { return RecordFor(entity).Transform; }
         [[nodiscard]] NameComponent& Name(Entity entity) { return RecordFor(entity).Name; }
         [[nodiscard]] const NameComponent& Name(Entity entity) const { return RecordFor(entity).Name; }
+
+        /// Input: entity and a validated renderer-independent asset binding.
+        /// Output: stores or replaces that entity's mesh renderer component.
+        /// Task: make visible scene objects discoverable by renderer adapters
+        /// while keeping asset loading and GPU ownership outside EngineCore.
+        void SetMeshRenderer(Entity entity, MeshRendererComponent component)
+        {
+            Record& record = RecordFor(entity);
+            component.Validate();
+            record.MeshRenderer = std::move(component);
+        }
+        [[nodiscard]] bool HasMeshRenderer(Entity entity) const { return RecordFor(entity).MeshRenderer.has_value(); }
+        [[nodiscard]] MeshRendererComponent& MeshRenderer(Entity entity) { return RequireComponent(RecordFor(entity).MeshRenderer, "mesh renderer"); }
+        [[nodiscard]] const MeshRendererComponent& MeshRenderer(Entity entity) const { return RequireComponent(RecordFor(entity).MeshRenderer, "mesh renderer"); }
+        bool RemoveMeshRenderer(Entity entity)
+        {
+            auto& component = RecordFor(entity).MeshRenderer;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+
+        /// Input: entity and projectable camera parameters.
+        /// Output: stores or replaces the camera component after validation.
+        /// Degeneracy: invalid FOV or clipping planes are rejected before the
+        /// scene changes, preserving the previous component when replacement fails.
+        void SetCamera(Entity entity, CameraComponent component)
+        {
+            Record& record = RecordFor(entity);
+            component.Validate();
+            record.Camera = component;
+        }
+        [[nodiscard]] bool HasCamera(Entity entity) const { return RecordFor(entity).Camera.has_value(); }
+        [[nodiscard]] CameraComponent& Camera(Entity entity) { return RequireComponent(RecordFor(entity).Camera, "camera"); }
+        [[nodiscard]] const CameraComponent& Camera(Entity entity) const { return RequireComponent(RecordFor(entity).Camera, "camera"); }
+        bool RemoveCamera(Entity entity)
+        {
+            auto& component = RecordFor(entity).Camera;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+
+        /// Physics IDs are opaque runtime handles. Presence of the component,
+        /// not a sentinel numeric value, determines whether an entity is bound.
+        void SetRigidBody(Entity entity, RigidBodyComponent component) { RecordFor(entity).RigidBody = component; }
+        [[nodiscard]] bool HasRigidBody(Entity entity) const { return RecordFor(entity).RigidBody.has_value(); }
+        [[nodiscard]] RigidBodyComponent& RigidBody(Entity entity) { return RequireComponent(RecordFor(entity).RigidBody, "rigid body"); }
+        [[nodiscard]] const RigidBodyComponent& RigidBody(Entity entity) const { return RequireComponent(RecordFor(entity).RigidBody, "rigid body"); }
+        bool RemoveRigidBody(Entity entity)
+        {
+            auto& component = RecordFor(entity).RigidBody;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+
+        void SetCollider(Entity entity, ColliderComponent component) { RecordFor(entity).Collider = component; }
+        [[nodiscard]] bool HasCollider(Entity entity) const { return RecordFor(entity).Collider.has_value(); }
+        [[nodiscard]] ColliderComponent& Collider(Entity entity) { return RequireComponent(RecordFor(entity).Collider, "collider"); }
+        [[nodiscard]] const ColliderComponent& Collider(Entity entity) const { return RequireComponent(RecordFor(entity).Collider, "collider"); }
+        bool RemoveCollider(Entity entity)
+        {
+            auto& component = RecordFor(entity).Collider;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+
+        /// Output: visible mesh entities in deterministic entity-ID order.
+        /// Task: give render extraction a stable traversal without exposing
+        /// optional component storage or unordered-map iteration order.
+        [[nodiscard]] std::vector<Entity> RenderableEntities() const
+        {
+            std::vector<Entity> result;
+            for (const Entity entity : Entities())
+                if (const auto& component = RecordFor(entity).MeshRenderer; component.has_value() && component->Visible)
+                    result.push_back(entity);
+            return result;
+        }
     private:
-        struct Record final { NameComponent Name; TransformComponent Transform; };
+        struct Record final
+        {
+            NameComponent Name;
+            TransformComponent Transform;
+            std::optional<MeshRendererComponent> MeshRenderer;
+            std::optional<CameraComponent> Camera;
+            std::optional<RigidBodyComponent> RigidBody;
+            std::optional<ColliderComponent> Collider;
+        };
         std::uint32_t m_Next = 1u;
         std::unordered_map<std::uint32_t, Record> m_Entities;
         [[nodiscard]] Record& RecordFor(Entity entity) { auto it = m_Entities.find(entity.Value); if (it == m_Entities.end()) throw std::out_of_range("Scene does not contain this entity."); return it->second; }
-        [[nodiscard]] const Record& RecordFor(Entity entity) const { return const_cast<Scene*>(this)->RecordFor(entity); }
+        [[nodiscard]] const Record& RecordFor(Entity entity) const
+        {
+            const auto it = m_Entities.find(entity.Value);
+            if (it == m_Entities.end()) throw std::out_of_range("Scene does not contain this entity.");
+            return it->second;
+        }
+
+        template<class Component>
+        [[nodiscard]] static Component& RequireComponent(std::optional<Component>& component, const char* name)
+        {
+            if (!component.has_value()) throw std::logic_error(std::string("Entity has no ") + name + " component.");
+            return *component;
+        }
+
+        template<class Component>
+        [[nodiscard]] static const Component& RequireComponent(const std::optional<Component>& component, const char* name)
+        {
+            if (!component.has_value()) throw std::logic_error(std::string("Entity has no ") + name + " component.");
+            return *component;
+        }
     };
 }

@@ -44,9 +44,11 @@ export namespace kairo::engine
     };
 
     /// Non-owning body/collider references. Physics adapters resolve them
-    /// against a PhysicsWorld; zero means no attached runtime physics object.
-    /// They intentionally carry no PhysicsEngine headers, preventing a Foundation
-    /// dependency from leaking into the reusable engine core.
+    /// against a PhysicsWorld. Component absence represents no attachment;
+    /// numeric value zero remains available because KairoPhysicsEngine assigns
+    /// valid body and collider IDs from zero. These types intentionally carry
+    /// no PhysicsEngine headers, preventing that dependency from leaking into
+    /// the reusable engine core.
     struct RigidBodyComponent final { std::uint32_t Body = 0u; };
     struct ColliderComponent final { std::uint32_t Collider = 0u; };
 }
