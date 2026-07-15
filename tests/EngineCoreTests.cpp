@@ -275,6 +275,26 @@ TEST_CASE("EngineCore registers inspector-ready reflection metadata", "[KairoEng
     REQUIRE_THROWS_AS(RegisterEngineCoreReflection(registry), std::invalid_argument);
 }
 
+TEST_CASE("EngineCore resolves scene components for reflection without retaining storage pointers",
+    "[KairoEngineCore][Reflection]")
+{
+    Scene scene;
+    const Entity entity = scene.CreateEntity("Inspector Camera");
+    scene.SetCamera(entity, CameraComponent{ .Primary = true });
+
+    const auto components = EnumerateReflectedComponents(scene, entity);
+    REQUIRE(components.size() == 2u);
+    CHECK(components[0].TypeKey == "Kairo.Engine.NameComponent");
+    CHECK(components[1].TypeKey == "Kairo.Engine.CameraComponent");
+    CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.NameComponent") == &scene.Name(entity));
+    CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.CameraComponent") == &scene.Camera(entity));
+    REQUIRE_THROWS_AS(ResolveReflectedComponent(scene, entity, "Kairo.Engine.MeshRendererComponent"), std::logic_error);
+
+    ValidateReflectedComponent("Kairo.Engine.CameraComponent", &scene.Camera(entity));
+    scene.Camera(entity).FarPlane = scene.Camera(entity).NearPlane;
+    REQUIRE_THROWS_AS(ValidateReflectedComponent("Kairo.Engine.CameraComponent", &scene.Camera(entity)), std::invalid_argument);
+}
+
 TEST_CASE("Job system completes queued work and propagates task results", "[KairoEngineCore][Jobs]")
 {
     JobSystem jobs(2u);
