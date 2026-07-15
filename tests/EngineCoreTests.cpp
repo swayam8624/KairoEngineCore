@@ -14,3 +14,12 @@ TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
     CHECK_FALSE(scene.Contains(first));
     CHECK(scene.Contains(second));
 }
+
+TEST_CASE("Engine events retain typed payload and handled state", "[KairoEngineCore][Event]")
+{
+    Event resize{ EventType::WindowResize, false, 1920, 1080 };
+    CHECK(resize.Name() == "WindowResize");
+    CHECK_FALSE(resize.Handled);
+    resize.Handled = true;
+    CHECK(resize.Handled);
+}
