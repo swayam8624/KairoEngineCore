@@ -1,8 +1,10 @@
 module;
 
 #include <condition_variable>
+#include <concepts>
 #include <cstddef>
 #include <deque>
+#include <exception>
 #include <functional>
 #include <future>
 #include <memory>
@@ -55,15 +57,41 @@ export namespace kairo::engine
         /// result. Task: queue work exactly once; exceptions propagate through
         /// the future rather than terminating a worker thread.
         template<typename Callable>
-        [[nodiscard]] auto Submit(Callable&& callable) -> std::future<std::invoke_result_t<Callable>>
+            requires std::invocable<std::decay_t<Callable>&>
+        [[nodiscard]] auto Submit(Callable&& callable) -> std::future<std::invoke_result_t<std::decay_t<Callable>&>>
         {
-            using Result = std::invoke_result_t<Callable>;
-            auto task = std::make_shared<std::packaged_task<Result()>>(std::forward<Callable>(callable));
-            std::future<Result> future = task->get_future();
+            using StoredCallable = std::decay_t<Callable>;
+            using Result = std::invoke_result_t<StoredCallable&>;
+
+            // Keep the queue copyable while accepting move-only jobs. This also
+            // avoids routing an importer-defined lambda through packaged_task's
+            // implementation detail, which is fragile with some C++ module and
+            // libstdc++ combinations.
+            auto function = std::make_shared<StoredCallable>(std::forward<Callable>(callable));
+            auto promise = std::make_shared<std::promise<Result>>();
+            std::future<Result> future = promise->get_future();
             {
                 std::scoped_lock lock(m_Mutex);
                 if (m_Stopping) throw std::runtime_error("Cannot submit work after JobSystem shutdown begins.");
-                m_Tasks.emplace_back([task] { (*task)(); });
+                m_Tasks.emplace_back([function, promise]
+                {
+                    try
+                    {
+                        if constexpr (std::is_void_v<Result>)
+                        {
+                            std::invoke(*function);
+                            promise->set_value();
+                        }
+                        else
+                        {
+                            promise->set_value(std::invoke(*function));
+                        }
+                    }
+                    catch (...)
+                    {
+                        promise->set_exception(std::current_exception());
+                    }
+                });
             }
             m_WorkAvailable.notify_one();
             return future;

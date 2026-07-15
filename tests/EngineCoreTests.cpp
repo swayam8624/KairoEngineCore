@@ -242,5 +242,17 @@ TEST_CASE("Job system completes queued work and propagates task results", "[Kair
     const int secondResult = second.get();
     CHECK(firstResult == 7);
     CHECK(secondResult == 11);
+
+    // A queued task may own resources that cannot be copied. The queue stores
+    // a shared envelope, so this remains valid without weakening task ownership.
+    auto ownedValue = std::make_unique<int>(13);
+    auto moveOnly = jobs.Submit([value = std::move(ownedValue)] { return *value; });
+    jobs.WaitIdle();
+    CHECK(moveOnly.get() == 13);
+
+    // Worker exceptions belong to the future; a faulty task must not terminate
+    // the worker or prevent later work from completing.
+    auto failing = jobs.Submit([]() -> int { throw std::runtime_error("expected task failure"); });
+    REQUIRE_THROWS_AS(failing.get(), std::runtime_error);
     REQUIRE_THROWS(JobSystem(257u));
 }
