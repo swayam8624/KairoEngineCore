@@ -1,8 +1,10 @@
 #include <catch2/catch_test_macros.hpp>
 #include <atomic>
+#include <filesystem>
 #include <limits>
 #include <memory>
 #include <stdexcept>
+#include <string>
 #include <vector>
 import Kairo.EngineCore;
 using namespace kairo::engine;
@@ -46,6 +48,72 @@ TEST_CASE("Scene restores explicit IDs without corrupting automatic allocation",
         { std::numeric_limits<std::uint32_t>::max() }, "Last");
     CHECK(last.Value == std::numeric_limits<std::uint32_t>::max());
     REQUIRE_THROWS_AS(exhausted.CreateEntity(), std::overflow_error);
+}
+
+TEST_CASE("Scene serialization round trips authored components and persistent assets", "[KairoEngineCore][Scene][Serialization]")
+{
+    kairo::assets::AssetRegistry assets;
+    assets.Insert({ MeshAsset, kairo::assets::AssetType::Mesh, kairo::assets::AssetOrigin::SourceFile,
+        "meshes/cube.obj", "kairo.obj", 1u, {} });
+    assets.Insert({ MaterialAsset, kairo::assets::AssetType::Material, kairo::assets::AssetOrigin::Generated,
+        "materials/default.kmat", "kairo.material", 1u, {} });
+
+    Scene original;
+    const Entity cube = original.CreateEntityWithID({ 9u }, "Cube \"Hero\"");
+    original.Transform(cube).Local.Translation = { 1.25f, -2.5f, 3.75f };
+    original.Transform(cube).Local.Scale = { 2.0f, 0.5f, 4.0f };
+    original.SetMeshRenderer(cube, { { MeshAsset }, { MaterialAsset }, false });
+    const Entity camera = original.CreateEntityWithID({ 42u }, "Main Camera");
+    original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
+    original.SetRigidBody(cube, { 7u });
+
+    const std::string encoded = SerializeScene(original, assets);
+    CHECK(encoded.find("rigid") == std::string::npos);
+    Scene restored = ParseScene(encoded, assets);
+    REQUIRE(restored.Entities() == std::vector<Entity>{ cube, camera });
+    CHECK(restored.Name(cube).Value == "Cube \"Hero\"");
+    CHECK(restored.Transform(cube).Local == original.Transform(cube).Local);
+    CHECK(restored.MeshRenderer(cube).MeshAsset.ID == MeshAsset);
+    CHECK_FALSE(restored.MeshRenderer(cube).Visible);
+    CHECK(restored.Camera(camera).Primary);
+    CHECK_FALSE(restored.HasRigidBody(cube));
+    CHECK(restored.CreateEntity("After restore").Value == 43u);
+}
+
+TEST_CASE("Scene parser reports source locations and validates registry references", "[KairoEngineCore][Scene][Serialization]")
+{
+    kairo::assets::AssetRegistry assets;
+    const std::string malformed = "kairo-scene 1\nentity 1 \"Broken\"\ntransform 0 0 nope 0 0 0 1 1 1 1\nend\n";
+    try
+    {
+        (void)ParseScene(malformed, assets);
+        FAIL("Expected a located parse error");
+    }
+    catch (const SceneFormatError& error)
+    {
+        CHECK(error.Line == 3u);
+        CHECK(error.Column == 15u);
+    }
+
+    const std::string missingAsset =
+        "kairo-scene 1\nentity 1 \"Cube\"\nmesh-renderer " + MeshAsset.ToString() + " " +
+        MaterialAsset.ToString() + " true\nend\n";
+    REQUIRE_THROWS_AS(ParseScene(missingAsset, assets), SceneFormatError);
+}
+
+TEST_CASE("Scene files replace destinations atomically after complete validation", "[KairoEngineCore][Scene][Serialization]")
+{
+    kairo::assets::AssetRegistry assets;
+    Scene scene;
+    const Entity entity = scene.CreateEntityWithID({ 5u }, "Saved");
+    const auto path = std::filesystem::temp_directory_path() /
+        ("kairo-scene-test-" + kairo::assets::GenerateAssetID().ToString() + ".kscene");
+    SaveScene(path, scene, assets);
+    Scene loaded;
+    LoadScene(path, assets, loaded);
+    CHECK(loaded.Contains(entity));
+    CHECK(loaded.Name(entity).Value == "Saved");
+    std::filesystem::remove(path);
 }
 
 namespace

@@ -27,6 +27,29 @@ Dependency resolution prefers `KAIRO_ASSETS_SOURCE_DIR`, then sibling
 `../KairoAssets`, then the GitHub `main` branch. EngineCore publicly links the
 asset identity API but never owns decoded asset or GPU-resource lifetimes.
 
+## Scene persistence
+
+`Kairo.EngineCore.SceneSerialization` provides deterministic `kairo-scene 1`
+text serialization with stable entity IDs, quoted names, transforms, mesh
+renderer bindings, and cameras. Loading validates mesh/material UUIDs and their
+declared types against the project's live `AssetRegistry`. Parse failures carry
+exact one-based line and column positions; file loading replaces the destination
+scene only after the complete document validates, and saving uses a flushed
+same-directory temporary followed by atomic replacement.
+
+```text
+kairo-scene 1
+entity 9 "Hero Cube"
+transform 0 1 0 0 0 0 1 1 1 1
+mesh-renderer 00000000-0000-4000-8000-000000000101 00000000-0000-4000-8000-000000000102 true
+end
+```
+
+`RigidBodyComponent` and `ColliderComponent` contain process-local adapter
+handles, so they are intentionally not serialized. A later persistent physics
+authoring component will describe body/collider creation; play mode will then
+rebuild runtime handles from that authored data.
+
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
 cmake --build build

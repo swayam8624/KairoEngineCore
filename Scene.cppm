@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <optional>
 #include <stdexcept>
@@ -24,7 +25,6 @@ export namespace kairo::engine
             if (m_Next == 0u)
                 throw std::overflow_error("Scene exhausted its 32-bit entity ID space.");
             const Entity id{ m_Next };
-            m_Next = m_Next == std::numeric_limits<std::uint32_t>::max() ? 0u : m_Next + 1u;
             return CreateEntityWithID(id, std::move(name));
         }
 
