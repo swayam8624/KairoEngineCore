@@ -10,5 +10,6 @@ export import Kairo.EngineCore.Event;
 export import Kairo.EngineCore.Input;
 export import Kairo.EngineCore.Layer;
 export import Kairo.EngineCore.Logger;
+export import Kairo.EngineCore.Diagnostics;
 export import Kairo.EngineCore.JobSystem;
 export import Kairo.EngineCore.Application;

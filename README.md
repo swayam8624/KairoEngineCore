@@ -11,8 +11,28 @@ KairoAssets --/
 
 V1 provides stable `Entity` IDs, a scene registry, name/transform/runtime
 components, a monotonic frame clock, typed events/layers, a bounded thread-safe
-logger, a fixed worker job system, and platform-neutral input state. Renderer and physics bindings remain
+logger, typed cross-system diagnostics, a fixed worker job system, and platform-neutral input state. Renderer and physics bindings remain
 outside the core so each backend can preserve its own lifetime rules.
+
+## Diagnostics
+
+`Kairo.EngineCore.Diagnostics` introduces `CoreDiagnostics`, the common
+channelled diagnostic facade for engine hosts and tools. It intentionally
+reuses the existing bounded `Logger` for synchronization, severity filtering,
+retention, and snapshots rather than keeping a second record store. Emitters
+choose a stable top-level channel (`Core`, `Assets`, `Scene`, `Renderer`,
+`Physics`, `Editor`, or `Tooling`) and may add a narrow scope such as
+`Renderer/Swapchain` or `Assets/Import`.
+
+```cpp
+CoreDiagnostics diagnostics;
+diagnostics.Emit(DiagnosticChannel::Renderer, "Swapchain", LogSeverity::Warning,
+    "Recreating after an out-of-date surface.");
+```
+
+The editor console, file sinks, and telemetry integrations consume the same
+ordered `Snapshot()` records. Core diagnostics deliberately has no GLFW,
+Vulkan, filesystem, or external logging dependency.
 
 Scene enumeration returns stable entity IDs in ascending creation order so
 hierarchies, serializers, and systems do not depend on unordered storage order.

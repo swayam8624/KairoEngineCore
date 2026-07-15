@@ -230,6 +230,27 @@ TEST_CASE("Logger preserves ordering and bounded diagnostic history", "[KairoEng
     CHECK(logger.Snapshot().size() == 2u);
 }
 
+TEST_CASE("Core diagnostics provides stable cross-system channels", "[KairoEngineCore][Diagnostics]")
+{
+    CoreDiagnostics diagnostics(3u);
+    diagnostics.Emit(DiagnosticChannel::Renderer, LogSeverity::Info, "Frame graph compiled");
+    diagnostics.Emit(DiagnosticChannel::Assets, "Import", LogSeverity::Warning, "Source texture missing mipmaps");
+    diagnostics.Emit(DiagnosticChannel::Physics, {}, LogSeverity::Error, "Constraint diverged");
+
+    const auto records = diagnostics.Snapshot();
+    REQUIRE(records.size() == 3u);
+    CHECK(records[0].Category == "Renderer");
+    CHECK(records[1].Category == "Assets/Import");
+    CHECK(records[2].Category == "Physics");
+    CHECK(NameOf(DiagnosticChannel::Editor) == "Editor");
+
+    diagnostics.SetMinimumSeverity(LogSeverity::Error);
+    diagnostics.Emit(DiagnosticChannel::Tooling, LogSeverity::Info, "Ignored by filter");
+    CHECK(diagnostics.Snapshot().size() == 3u);
+    diagnostics.Clear();
+    CHECK(diagnostics.Snapshot().empty());
+}
+
 TEST_CASE("Job system completes queued work and propagates task results", "[KairoEngineCore][Jobs]")
 {
     JobSystem jobs(2u);
