@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <atomic>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <vector>
@@ -29,6 +30,22 @@ TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
     REQUIRE(entities.size() == 1u);
     CHECK(entities.front() == second);
     CHECK(readOnly.Name(second).Value == "Floor");
+}
+
+TEST_CASE("Scene restores explicit IDs without corrupting automatic allocation", "[KairoEngineCore][Scene][Serialization]")
+{
+    Scene scene;
+    const Entity restored = scene.CreateEntityWithID({ 41u }, "Restored");
+    CHECK(restored.Value == 41u);
+    CHECK(scene.CreateEntity("Next").Value == 42u);
+    REQUIRE_THROWS_AS(scene.CreateEntityWithID({}, "Invalid"), std::invalid_argument);
+    REQUIRE_THROWS_AS(scene.CreateEntityWithID(restored, "Duplicate"), std::invalid_argument);
+
+    Scene exhausted;
+    const Entity last = exhausted.CreateEntityWithID(
+        { std::numeric_limits<std::uint32_t>::max() }, "Last");
+    CHECK(last.Value == std::numeric_limits<std::uint32_t>::max());
+    REQUIRE_THROWS_AS(exhausted.CreateEntity(), std::overflow_error);
 }
 
 namespace

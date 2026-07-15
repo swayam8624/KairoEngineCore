@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -20,10 +21,28 @@ export namespace kairo::engine
     public:
         [[nodiscard]] Entity CreateEntity(std::string name = "Entity")
         {
-            const Entity id{ m_Next++ };
+            if (m_Next == 0u)
+                throw std::overflow_error("Scene exhausted its 32-bit entity ID space.");
+            const Entity id{ m_Next };
+            m_Next = m_Next == std::numeric_limits<std::uint32_t>::max() ? 0u : m_Next + 1u;
+            return CreateEntityWithID(id, std::move(name));
+        }
+
+        /// Input: a non-zero scene-local ID and entity name.
+        /// Output: a new entity retaining the requested stable identity.
+        /// Task: restore serialized scenes without making file order affect IDs.
+        /// Degeneracy: zero and duplicate IDs are rejected; restoring an ID at
+        /// or above the allocation cursor advances that cursor without wrapping
+        /// into the reserved invalid ID.
+        [[nodiscard]] Entity CreateEntityWithID(Entity id, std::string name = "Entity")
+        {
+            if (!id) throw std::invalid_argument("A scene entity ID cannot be zero.");
+            if (m_Entities.contains(id.Value)) throw std::invalid_argument("Scene already contains this entity ID.");
             Record record;
             record.Name.Value = std::move(name);
             m_Entities.emplace(id.Value, std::move(record));
+            if (m_Next != 0u && id.Value >= m_Next)
+                m_Next = id.Value == std::numeric_limits<std::uint32_t>::max() ? 0u : id.Value + 1u;
             return id;
         }
         void DestroyEntity(Entity entity) { if (m_Entities.erase(entity.Value) == 0u) throw std::out_of_range("Scene does not contain this entity."); }
