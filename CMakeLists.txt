@@ -8,7 +8,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 
 # Immutable revisions used only outside a local workspace checkout. They track
 # the component commits validated by the KairoGameEngine superbuild.
-set(KAIRO_ENGINE_CORE_MATH_REVISION ea0ac4845b91316bb85dd03932b2bc5494f6525f)
+set(KAIRO_ENGINE_CORE_MATH_REVISION d77c98d7401f63b697c1486ebf59a1fae74c6490)
 set(KAIRO_ENGINE_CORE_ASSETS_REVISION e3cf3544fa8da43367634af055032b31a4b3d646)
 set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 7aaa24a4767433ad8911e0accbb2a480e607ded8)
 
