@@ -8,10 +8,10 @@ GLFW/Vulkan or physics world; host applications inject those systems.
 KairoMath -> KairoEngineCore -> KairoRenderer / KairoPhysicsEngine adapters
 ```
 
-V1 currently provides stable `Entity` IDs, a scene registry, name/transform
-components, and a monotonic frame clock. Renderer and physics components land
-only after their ownership/lifetime contracts are exercised in integration
-examples.
+V1 provides stable `Entity` IDs, a scene registry, name/transform/runtime
+components, a monotonic frame clock, typed events/layers, a bounded thread-safe
+logger, and a fixed worker job system. Renderer and physics bindings remain
+outside the core so each backend can preserve its own lifetime rules.
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++

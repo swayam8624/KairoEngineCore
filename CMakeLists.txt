@@ -25,7 +25,7 @@ endif()
 
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
-    Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm Time.cppm Event.cppm Layer.cppm Application.cppm KairoEngineCore.cppm)
+    Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm Time.cppm Event.cppm Layer.cppm Logger.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath)
 
 if(KAIRO_ENGINE_CORE_BUILD_TESTS)

@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include <atomic>
 #include <memory>
 import Kairo.EngineCore;
 using namespace kairo::engine;
@@ -62,4 +63,34 @@ TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngin
     REQUIRE_NOTHROW(camera.Validate());
     camera.FarPlane = camera.NearPlane;
     REQUIRE_THROWS(camera.Validate());
+}
+
+TEST_CASE("Logger preserves ordering and bounded diagnostic history", "[KairoEngineCore][Logger]")
+{
+    Logger logger(2u);
+    logger.Write(LogSeverity::Info, "Scene", "Created");
+    logger.Write(LogSeverity::Warning, "Physics", "Sleeping body");
+    logger.Write(LogSeverity::Error, "Renderer", "Lost surface");
+    const auto records = logger.Snapshot();
+    REQUIRE(records.size() == 2u);
+    CHECK(records[0].Sequence == 2u);
+    CHECK(records[1].Category == "Renderer");
+    logger.SetMinimumSeverity(LogSeverity::Error);
+    logger.Write(LogSeverity::Info, "Scene", "Ignored");
+    CHECK(logger.Snapshot().size() == 2u);
+}
+
+TEST_CASE("Job system completes queued work and propagates task results", "[KairoEngineCore][Jobs]")
+{
+    JobSystem jobs(2u);
+    std::atomic<int> executed = 0;
+    auto first = jobs.Submit([&executed] { ++executed; return 7; });
+    auto second = jobs.Submit([&executed] { ++executed; return 11; });
+    jobs.WaitIdle();
+    CHECK(executed.load() == 2);
+    const int firstResult = first.get();
+    const int secondResult = second.get();
+    CHECK(firstResult == 7);
+    CHECK(secondResult == 11);
+    REQUIRE_THROWS(JobSystem(257u));
 }
