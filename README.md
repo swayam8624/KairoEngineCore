@@ -13,6 +13,9 @@ components, a monotonic frame clock, typed events/layers, a bounded thread-safe
 logger, a fixed worker job system, and platform-neutral input state. Renderer and physics bindings remain
 outside the core so each backend can preserve its own lifetime rules.
 
+Scene enumeration returns stable entity IDs in ascending creation order so
+hierarchies, serializers, and systems do not depend on unordered storage order.
+
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
 cmake --build build

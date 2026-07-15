@@ -15,6 +15,11 @@ TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
     scene.DestroyEntity(first);
     CHECK_FALSE(scene.Contains(first));
     CHECK(scene.Contains(second));
+    const Scene& readOnly = scene;
+    const auto entities = readOnly.Entities();
+    REQUIRE(entities.size() == 1u);
+    CHECK(entities.front() == second);
+    CHECK(readOnly.Name(second).Value == "Floor");
 }
 
 namespace

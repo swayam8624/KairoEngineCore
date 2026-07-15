@@ -1,4 +1,5 @@
 module;
+#include <algorithm>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -18,9 +19,21 @@ export namespace kairo::engine
         void DestroyEntity(Entity entity) { if (m_Entities.erase(entity.Value) == 0u) throw std::out_of_range("Scene does not contain this entity."); }
         [[nodiscard]] bool Contains(Entity entity) const noexcept { return m_Entities.contains(entity.Value); }
         [[nodiscard]] std::size_t Size() const noexcept { return m_Entities.size(); }
+        /// Output: entity IDs in deterministic ascending creation order.
+        /// Task: support hierarchy, serialization, and system iteration without
+        /// exposing the scene's component storage implementation.
+        [[nodiscard]] std::vector<Entity> Entities() const
+        {
+            std::vector<Entity> entities;
+            entities.reserve(m_Entities.size());
+            for (const auto& [value, record] : m_Entities) entities.push_back({ value });
+            std::sort(entities.begin(), entities.end(), [](Entity a, Entity b) { return a.Value < b.Value; });
+            return entities;
+        }
         [[nodiscard]] TransformComponent& Transform(Entity entity) { return RecordFor(entity).Transform; }
         [[nodiscard]] const TransformComponent& Transform(Entity entity) const { return RecordFor(entity).Transform; }
         [[nodiscard]] NameComponent& Name(Entity entity) { return RecordFor(entity).Name; }
+        [[nodiscard]] const NameComponent& Name(Entity entity) const { return RecordFor(entity).Name; }
     private:
         struct Record final { NameComponent Name; TransformComponent Transform; };
         std::uint32_t m_Next = 1u;
