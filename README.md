@@ -5,7 +5,8 @@ Kairo's renderer, physics engine, and future editor. It intentionally owns no
 GLFW/Vulkan or physics world; host applications inject those systems.
 
 ```text
-KairoMath -> KairoEngineCore -> KairoRenderer / KairoPhysicsEngine adapters
+KairoMath ----> KairoEngineCore -> KairoRenderer / KairoPhysicsEngine adapters
+KairoAssets --/
 ```
 
 V1 provides stable `Entity` IDs, a scene registry, name/transform/runtime
@@ -16,8 +17,15 @@ outside the core so each backend can preserve its own lifetime rules.
 Scene enumeration returns stable entity IDs in ascending creation order so
 hierarchies, serializers, and systems do not depend on unordered storage order.
 Scenes own optional mesh renderer, camera, rigid-body, and collider components.
+Mesh renderer components use persistent typed `KairoAssets` handles rather than
+path strings, so asset moves do not invalidate scene references.
 `RenderableEntities()` filters visible meshes deterministically for renderer
-extraction while asset resolution and GPU resources remain adapter-owned.
+extraction while registry lookup, decoded content, and GPU resources remain
+adapter-owned.
+
+Dependency resolution prefers `KAIRO_ASSETS_SOURCE_DIR`, then sibling
+`../KairoAssets`, then the GitHub `main` branch. EngineCore publicly links the
+asset identity API but never owns decoded asset or GPU-resource lifetimes.
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++

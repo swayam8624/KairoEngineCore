@@ -5,6 +5,13 @@
 #include <vector>
 import Kairo.EngineCore;
 using namespace kairo::engine;
+
+namespace
+{
+    const auto MeshAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000101");
+    const auto MaterialAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000102");
+}
+
 TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
 {
     Scene scene;
@@ -82,9 +89,9 @@ TEST_CASE("Application owns platform-neutral held and frame-scoped input", "[Kai
 
 TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngineCore][Components]")
 {
-    MeshRendererComponent mesh{ "mesh/cube", "material/default", true };
+    MeshRendererComponent mesh{ { MeshAsset }, { MaterialAsset }, true };
     REQUIRE_NOTHROW(mesh.Validate());
-    mesh.MaterialAsset.clear();
+    mesh.MaterialAsset = {};
     REQUIRE_THROWS(mesh.Validate());
     CameraComponent camera;
     REQUIRE_NOTHROW(camera.Validate());
@@ -99,23 +106,23 @@ TEST_CASE("Scene owns optional runtime components and stable render extraction",
     const Entity visible = scene.CreateEntity("Visible");
     const Entity camera = scene.CreateEntity("Camera");
 
-    scene.SetMeshRenderer(hidden, { "mesh/cube", "material/default", false });
-    scene.SetMeshRenderer(visible, { "mesh/cube", "material/default", true });
+    scene.SetMeshRenderer(hidden, { { MeshAsset }, { MaterialAsset }, false });
+    scene.SetMeshRenderer(visible, { { MeshAsset }, { MaterialAsset }, true });
     scene.SetCamera(camera, CameraComponent{ .Primary = true });
     scene.SetRigidBody(visible, { 0u });
     scene.SetCollider(visible, { 0u });
 
     REQUIRE(scene.HasMeshRenderer(visible));
-    CHECK(scene.MeshRenderer(visible).MeshAsset == "mesh/cube");
+    CHECK(scene.MeshRenderer(visible).MeshAsset.ID == MeshAsset);
     REQUIRE(scene.HasCamera(camera));
     CHECK(scene.Camera(camera).Primary);
     CHECK(scene.RigidBody(visible).Body == 0u);
     CHECK(scene.Collider(visible).Collider == 0u);
     CHECK(scene.RenderableEntities() == std::vector<Entity>{ visible });
 
-    MeshRendererComponent invalid{ "mesh/cube", "", true };
+    MeshRendererComponent invalid{ { MeshAsset }, {}, true };
     REQUIRE_THROWS_AS(scene.SetMeshRenderer(visible, invalid), std::invalid_argument);
-    CHECK(scene.MeshRenderer(visible).MaterialAsset == "material/default");
+    CHECK(scene.MeshRenderer(visible).MaterialAsset.ID == MaterialAsset);
 
     CHECK(scene.RemoveMeshRenderer(visible));
     CHECK_FALSE(scene.RemoveMeshRenderer(visible));

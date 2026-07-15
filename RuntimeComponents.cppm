@@ -1,26 +1,29 @@
 module;
 #include <cstdint>
 #include <stdexcept>
-#include <string>
 export module Kairo.EngineCore.RuntimeComponents;
+
+import Kairo.Assets;
+
 export namespace kairo::engine
 {
-    /// Opaque asset keys keep scene serialization independent from a concrete
-    /// mesh/material loader while giving renderer adapters stable identifiers.
+    /// Persistent typed handles keep scene serialization independent from a
+    /// concrete loader while preserving references across asset path moves.
     struct MeshRendererComponent final
     {
-        std::string MeshAsset;
-        std::string MaterialAsset;
+        kairo::assets::MeshAssetHandle MeshAsset;
+        kairo::assets::MaterialAssetHandle MaterialAsset;
         bool Visible = true;
 
         /// Task: validate the renderer-independent mesh/material references.
-        /// Input: non-empty, application-defined asset keys.
+        /// Input: valid persistent KairoAssets handles of the required types.
         /// Output: no value; throws std::invalid_argument on an unusable component.
         /// This deliberately does not load assets: loading belongs to an adapter
         /// such as KairoRenderer, keeping EngineCore usable in headless tools.
         void Validate() const
         {
-            if (MeshAsset.empty() || MaterialAsset.empty()) throw std::invalid_argument("MeshRendererComponent requires mesh and material asset keys.");
+            if (!MeshAsset.IsValid() || !MaterialAsset.IsValid())
+                throw std::invalid_argument("MeshRendererComponent requires valid mesh and material asset handles.");
         }
     };
 
