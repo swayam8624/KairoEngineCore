@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 import Kairo.EngineCore;
+import Kairo.Reflection;
 using namespace kairo::engine;
 
 namespace
@@ -249,6 +250,29 @@ TEST_CASE("Core diagnostics provides stable cross-system channels", "[KairoEngin
     CHECK(diagnostics.Snapshot().size() == 3u);
     diagnostics.Clear();
     CHECK(diagnostics.Snapshot().empty());
+}
+
+TEST_CASE("EngineCore registers inspector-ready reflection metadata", "[KairoEngineCore][Reflection]")
+{
+    kairo::reflection::ReflectionRegistry registry;
+    RegisterEngineCoreReflection(registry);
+    REQUIRE(registry.Size() == 5u);
+
+    CameraComponent camera;
+    registry.Write("Kairo.Engine.CameraComponent", "vertical-fov-radians", &camera,
+        kairo::reflection::PropertyValue(1.25));
+    registry.Write("Kairo.Engine.CameraComponent", "primary", &camera,
+        kairo::reflection::PropertyValue(true));
+    CHECK(camera.VerticalFovRadians == 1.25f);
+    CHECK(camera.Primary);
+    REQUIRE_THROWS_AS(registry.Write("Kairo.Engine.CameraComponent", "near-plane", &camera,
+        kairo::reflection::PropertyValue(-1.0)), std::out_of_range);
+
+    NameComponent name{ "Original" };
+    registry.Write("Kairo.Engine.NameComponent", "value", &name,
+        kairo::reflection::PropertyValue("Reflected Name"));
+    CHECK(name.Value == "Reflected Name");
+    REQUIRE_THROWS_AS(RegisterEngineCoreReflection(registry), std::invalid_argument);
 }
 
 TEST_CASE("Job system completes queued work and propagates task results", "[KairoEngineCore][Jobs]")

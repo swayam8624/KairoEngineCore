@@ -10,9 +10,26 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 # the component commits validated by the KairoGameEngine superbuild.
 set(KAIRO_ENGINE_CORE_MATH_REVISION ea0ac4845b91316bb85dd03932b2bc5494f6525f)
 set(KAIRO_ENGINE_CORE_ASSETS_REVISION e3cf3544fa8da43367634af055032b31a4b3d646)
+set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 7aaa24a4767433ad8911e0accbb2a480e607ded8)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
+endif()
+
+if(NOT TARGET KairoReflection)
+    set(KAIRO_REFLECTION_SOURCE_DIR "" CACHE PATH "Path to a local KairoReflection checkout")
+    if(KAIRO_REFLECTION_SOURCE_DIR AND EXISTS "${KAIRO_REFLECTION_SOURCE_DIR}/CMakeLists.txt")
+        add_subdirectory("${KAIRO_REFLECTION_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoReflection")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../KairoReflection/CMakeLists.txt")
+        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../KairoReflection" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoReflection")
+    else()
+        include(FetchContent)
+        FetchContent_Declare(KairoReflection
+            GIT_REPOSITORY https://github.com/swayam8624/KairoReflection.git
+            GIT_TAG ${KAIRO_ENGINE_CORE_REFLECTION_REVISION}
+            GIT_SHALLOW TRUE)
+        FetchContent_MakeAvailable(KairoReflection)
+    endif()
 endif()
 
 if(NOT TARGET KairoMath)
@@ -49,8 +66,8 @@ endif()
 
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
-    Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm Time.cppm Event.cppm Input.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
-target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoAssets)
+    Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
+target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoAssets KairoReflection)
 
 if(KAIRO_ENGINE_CORE_BUILD_TESTS)
     include(FetchContent)

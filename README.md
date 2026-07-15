@@ -7,12 +7,33 @@ GLFW/Vulkan or physics world; host applications inject those systems.
 ```text
 KairoMath ----> KairoEngineCore -> KairoRenderer / KairoPhysicsEngine adapters
 KairoAssets --/
+KairoReflection -/
 ```
 
 V1 provides stable `Entity` IDs, a scene registry, name/transform/runtime
 components, a monotonic frame clock, typed events/layers, a bounded thread-safe
 logger, typed cross-system diagnostics, a fixed worker job system, and platform-neutral input state. Renderer and physics bindings remain
 outside the core so each backend can preserve its own lifetime rules.
+
+## Reflection
+
+`Kairo.EngineCore.Reflection` registers metadata for the scalar fields already
+owned by EngineCore: names, camera projection settings, mesh visibility, and
+opaque physics bindings. The catalog uses `KairoReflection` rather than raw
+ImGui controls, so an editor inspector, document validator, search index, and
+future graph parameter UI share the same stable keys and constraints.
+
+```cpp
+import Kairo.EngineCore;
+import Kairo.Reflection;
+
+kairo::reflection::ReflectionRegistry registry;
+RegisterEngineCoreReflection(registry);
+```
+
+`TransformComponent::Local` is intentionally deferred until KairoReflection
+gains explicit composite vector/quaternion adapters. It is not exposed as a
+collection of accidental scalar fields.
 
 ## Diagnostics
 
