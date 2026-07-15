@@ -6,6 +6,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_TOP_LEVEL})
 
+# Immutable revisions used only outside a local workspace checkout. They track
+# the component commits validated by the KairoGameEngine superbuild.
+set(KAIRO_ENGINE_CORE_MATH_REVISION 24ed9ec2bacf508228bc7264fdbad109b65cf63b)
+set(KAIRO_ENGINE_CORE_ASSETS_REVISION e3cf3544fa8da43367634af055032b31a4b3d646)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
 endif()
@@ -18,7 +23,10 @@ if(NOT TARGET KairoMath)
         add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../Foundation/KairoMath" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoMath")
     else()
         include(FetchContent)
-        FetchContent_Declare(KairoMath GIT_REPOSITORY https://github.com/swayam8624/KairoMath.git GIT_TAG main)
+        FetchContent_Declare(KairoMath
+            GIT_REPOSITORY https://github.com/swayam8624/KairoMath.git
+            GIT_TAG ${KAIRO_ENGINE_CORE_MATH_REVISION}
+            GIT_SHALLOW TRUE)
         FetchContent_MakeAvailable(KairoMath)
     endif()
 endif()
@@ -31,7 +39,10 @@ if(NOT TARGET KairoAssets)
         add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../KairoAssets" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoAssets")
     else()
         include(FetchContent)
-        FetchContent_Declare(KairoAssets GIT_REPOSITORY https://github.com/swayam8624/KairoAssets.git GIT_TAG main)
+        FetchContent_Declare(KairoAssets
+            GIT_REPOSITORY https://github.com/swayam8624/KairoAssets.git
+            GIT_TAG ${KAIRO_ENGINE_CORE_ASSETS_REVISION}
+            GIT_SHALLOW TRUE)
         FetchContent_MakeAvailable(KairoAssets)
     endif()
 endif()
