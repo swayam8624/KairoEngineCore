@@ -8,7 +8,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 
 # Immutable revisions used only outside a local workspace checkout. They track
 # the component commits validated by the KairoGameEngine superbuild.
-set(KAIRO_ENGINE_CORE_MATH_REVISION 24ed9ec2bacf508228bc7264fdbad109b65cf63b)
+set(KAIRO_ENGINE_CORE_MATH_REVISION ea0ac4845b91316bb85dd03932b2bc5494f6525f)
 set(KAIRO_ENGINE_CORE_ASSETS_REVISION e3cf3544fa8da43367634af055032b31a4b3d646)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
