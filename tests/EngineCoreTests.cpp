@@ -36,6 +36,32 @@ TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
     CHECK(readOnly.Name(second).Value == "Floor");
 }
 
+TEST_CASE("EngineCore owns versioned project descriptors for tools and players",
+    "[KairoEngineCore][Project]")
+{
+    ProjectDescriptor descriptor{ "Runtime Project", "Assets.kassets", "Scenes/Main.kscene" };
+    descriptor.EnabledPlugins = { "kairo.gameplay" };
+    descriptor.BuildProfiles = {
+        { "Shipping", ProjectBuildKind::Release, "Artifacts/Shipping" } };
+    const std::string encoded = SerializeProjectDescriptor(descriptor);
+    CHECK(encoded.starts_with("kairo-project 2\n"));
+    CHECK(ParseProjectDescriptor(encoded) == descriptor);
+
+    const auto migrated = ParseProjectDescriptor(
+        "kairo-project 1\nname \"Legacy\"\nassets \"Assets.kassets\"\n"
+        "startup-scene \"Scenes/Main.kscene\"\n");
+    CHECK(migrated.EngineVersion == "0.1.0");
+    CHECK(migrated.BuildProfiles.size() == 2u);
+
+    const auto root = std::filesystem::temp_directory_path() /
+        ("kairo-core-project-" + kairo::assets::GenerateAssetID().ToString());
+    const auto path = root / "Game.kproject";
+    SaveProjectDescriptor(path, descriptor);
+    CHECK(LoadProjectDescriptor(path) == descriptor);
+    CHECK_FALSE(std::filesystem::exists(path.string() + ".tmp"));
+    std::filesystem::remove_all(root);
+}
+
 TEST_CASE("Scene restores explicit IDs without corrupting automatic allocation", "[KairoEngineCore][Scene][Serialization]")
 {
     Scene scene;

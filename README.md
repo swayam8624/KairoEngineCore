@@ -11,9 +11,35 @@ KairoReflection -/
 ```
 
 V1 provides stable `Entity` IDs, a scene registry, name/transform/runtime
-components, a monotonic frame clock, typed events/layers, a bounded thread-safe
-logger, typed cross-system diagnostics, a fixed worker job system, and platform-neutral input state. Renderer and physics bindings remain
+components, a versioned project bootstrap contract, a monotonic frame clock,
+typed events/layers, a bounded thread-safe logger, typed cross-system
+diagnostics, a fixed worker job system, and platform-neutral input state. Renderer and physics bindings remain
 outside the core so each backend can preserve its own lifetime rules.
+
+## Project bootstrap
+
+`Kairo.EngineCore.ProjectDescriptor` owns the runtime-neutral `.kproject`
+contract shared by KairoHub, KairoEditor, build tools, and KairoPlayer. Keeping
+this format in EngineCore prevents launchers and players from depending on the
+editor while ensuring every host validates the same startup scene, asset
+manifest, input map, engine version, plugins, rendering profile, and build
+profiles.
+
+Project V1 remains readable with deterministic defaults. Explicit saves emit
+V2, reject unsafe or ambiguous relative paths, and use a flushed colocated
+temporary plus atomic replacement so a failed write cannot destroy the last
+valid descriptor. Located parse errors report one-based line and column
+positions. The reusable `TextValidation` and `TextFormat` modules provide the
+same bounded UTF-8, quoted-token, and atomic-text primitives to other
+EngineCore-owned formats.
+
+```cpp
+import Kairo.EngineCore;
+
+ProjectDescriptor project = LoadProjectDescriptor("Game.kproject");
+project.StartupScene = "Scenes/Title.kscene";
+SaveProjectDescriptor("Game.kproject", project);
+```
 
 ## Reflection
 
