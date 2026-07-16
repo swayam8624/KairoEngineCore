@@ -140,6 +140,46 @@ export namespace kairo::engine
             throw SceneFormatError(line, token.Column, "boolean value must be true or false");
         }
 
+        [[nodiscard]] inline RigidBodyMotion ParseMotion(const Token& token, std::size_t line)
+        {
+            if (token.Text == "static") return RigidBodyMotion::Static;
+            if (token.Text == "dynamic") return RigidBodyMotion::Dynamic;
+            if (token.Text == "kinematic") return RigidBodyMotion::Kinematic;
+            throw SceneFormatError(line, token.Column,
+                "rigid body motion must be static, dynamic, or kinematic");
+        }
+
+        [[nodiscard]] inline std::string_view MotionName(RigidBodyMotion motion)
+        {
+            switch (motion)
+            {
+                case RigidBodyMotion::Static: return "static";
+                case RigidBodyMotion::Dynamic: return "dynamic";
+                case RigidBodyMotion::Kinematic: return "kinematic";
+            }
+            throw std::invalid_argument("Rigid body motion enum is invalid.");
+        }
+
+        [[nodiscard]] inline ColliderShape ParseShape(const Token& token, std::size_t line)
+        {
+            if (token.Text == "box") return ColliderShape::Box;
+            if (token.Text == "sphere") return ColliderShape::Sphere;
+            if (token.Text == "capsule") return ColliderShape::Capsule;
+            throw SceneFormatError(line, token.Column,
+                "collider shape must be box, sphere, or capsule");
+        }
+
+        [[nodiscard]] inline std::string_view ShapeName(ColliderShape shape)
+        {
+            switch (shape)
+            {
+                case ColliderShape::Box: return "box";
+                case ColliderShape::Sphere: return "sphere";
+                case ColliderShape::Capsule: return "capsule";
+            }
+            throw std::invalid_argument("Collider shape enum is invalid.");
+        }
+
         [[nodiscard]] inline kairo::assets::AssetID ParseAssetID(const Token& token, std::size_t line)
         {
             try { return kairo::assets::AssetID::Parse(token.Text); }
@@ -177,9 +217,8 @@ export namespace kairo::engine
     /// Input: a complete UTF-8 `kairo-scene 1|2` document and the project asset registry.
     /// Output: a new scene with restored IDs and validated typed asset references.
     /// Task: deserialize authored state with deterministic behavior and exact
-    /// line/column diagnostics. Physics binding presence and its opaque
-    /// authoring token round-trip; adapters may replace that token in a cloned
-    /// runtime scene when entering play mode.
+    /// line/column diagnostics. Typed physics descriptors remain independent
+    /// of process-local PhysicsWorld handles.
     [[nodiscard]] inline Scene ParseScene(std::string_view source, const kairo::assets::AssetRegistry& assets)
     {
         using namespace scene_format_detail;
@@ -353,15 +392,76 @@ export namespace kairo::engine
             else if (tokens[0].Text == "rigid-body")
             {
                 if (rigidBodySeen) throw SceneFormatError(lineNumber, tokens[0].Column, "duplicate rigid body component");
-                RequireCount(tokens, 2u, lineNumber, "rigid-body");
-                scene.SetRigidBody(*current, { ParseUInt32(tokens[1], lineNumber, "rigid body ID") });
+                if (version == 1u)
+                {
+                    RequireCount(tokens, 2u, lineNumber, "rigid-body");
+                    (void)ParseUInt32(tokens[1], lineNumber, "legacy rigid body ID");
+                    scene.SetRigidBody(*current, {});
+                }
+                else
+                {
+                    RequireCount(tokens, 7u, lineNumber, "rigid-body");
+                    RigidBodyComponent body{
+                        ParseMotion(tokens[1], lineNumber),
+                        ParseFloat(tokens[2], lineNumber, "density"),
+                        ParseFloat(tokens[3], lineNumber, "gravity scale"),
+                        ParseFloat(tokens[4], lineNumber, "linear damping"),
+                        ParseFloat(tokens[5], lineNumber, "angular damping"),
+                        ParseBool(tokens[6], lineNumber)
+                    };
+                    try { scene.SetRigidBody(*current, body); }
+                    catch (const std::exception& error)
+                    { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
+                }
                 rigidBodySeen = true;
             }
             else if (tokens[0].Text == "collider")
             {
                 if (colliderSeen) throw SceneFormatError(lineNumber, tokens[0].Column, "duplicate collider component");
-                RequireCount(tokens, 2u, lineNumber, "collider");
-                scene.SetCollider(*current, { ParseUInt32(tokens[1], lineNumber, "collider ID") });
+                if (version == 1u)
+                {
+                    RequireCount(tokens, 2u, lineNumber, "collider");
+                    (void)ParseUInt32(tokens[1], lineNumber, "legacy collider ID");
+                    scene.SetCollider(*current, {});
+                }
+                else
+                {
+                    if (tokens.size() < 2u)
+                        throw SceneFormatError(lineNumber, 1u, "collider expects a shape");
+                    ColliderComponent collider;
+                    collider.Shape = ParseShape(tokens[1], lineNumber);
+                    if (collider.Shape == ColliderShape::Box)
+                    {
+                        RequireCount(tokens, 8u, lineNumber, "box collider");
+                        collider.HalfExtents = {
+                            ParseFloat(tokens[2], lineNumber, "box half extent x"),
+                            ParseFloat(tokens[3], lineNumber, "box half extent y"),
+                            ParseFloat(tokens[4], lineNumber, "box half extent z") };
+                        collider.Friction = ParseFloat(tokens[5], lineNumber, "friction");
+                        collider.Restitution = ParseFloat(tokens[6], lineNumber, "restitution");
+                        collider.IsTrigger = ParseBool(tokens[7], lineNumber);
+                    }
+                    else if (collider.Shape == ColliderShape::Sphere)
+                    {
+                        RequireCount(tokens, 6u, lineNumber, "sphere collider");
+                        collider.Radius = ParseFloat(tokens[2], lineNumber, "sphere radius");
+                        collider.Friction = ParseFloat(tokens[3], lineNumber, "friction");
+                        collider.Restitution = ParseFloat(tokens[4], lineNumber, "restitution");
+                        collider.IsTrigger = ParseBool(tokens[5], lineNumber);
+                    }
+                    else
+                    {
+                        RequireCount(tokens, 7u, lineNumber, "capsule collider");
+                        collider.Radius = ParseFloat(tokens[2], lineNumber, "capsule radius");
+                        collider.HalfHeight = ParseFloat(tokens[3], lineNumber, "capsule half height");
+                        collider.Friction = ParseFloat(tokens[4], lineNumber, "friction");
+                        collider.Restitution = ParseFloat(tokens[5], lineNumber, "restitution");
+                        collider.IsTrigger = ParseBool(tokens[6], lineNumber);
+                    }
+                    try { scene.SetCollider(*current, collider); }
+                    catch (const std::exception& error)
+                    { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
+                }
                 colliderSeen = true;
             }
             else if (tokens[0].Text == "end")
@@ -434,9 +534,28 @@ export namespace kairo::engine
                     << camera.FarPlane << ' ' << (camera.Primary ? "true" : "false") << '\n';
             }
             if (scene.HasRigidBody(entity))
-                output << "rigid-body " << scene.RigidBody(entity).Body << '\n';
+            {
+                const auto& body = scene.RigidBody(entity);
+                body.Validate();
+                output << "rigid-body " << MotionName(body.Motion) << ' ' << body.Density << ' '
+                    << body.GravityScale << ' ' << body.LinearDamping << ' ' << body.AngularDamping
+                    << ' ' << (body.Continuous ? "true" : "false") << '\n';
+            }
             if (scene.HasCollider(entity))
-                output << "collider " << scene.Collider(entity).Collider << '\n';
+            {
+                const auto& collider = scene.Collider(entity);
+                collider.Validate();
+                output << "collider " << ShapeName(collider.Shape) << ' ';
+                if (collider.Shape == ColliderShape::Box)
+                    output << collider.HalfExtents.x << ' ' << collider.HalfExtents.y << ' '
+                        << collider.HalfExtents.z << ' ';
+                else if (collider.Shape == ColliderShape::Sphere)
+                    output << collider.Radius << ' ';
+                else
+                    output << collider.Radius << ' ' << collider.HalfHeight << ' ';
+                output << collider.Friction << ' ' << collider.Restitution << ' '
+                    << (collider.IsTrigger ? "true" : "false") << '\n';
+            }
             output << "end\n";
         }
         return output.str();

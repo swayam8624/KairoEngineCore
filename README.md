@@ -97,10 +97,17 @@ mesh-renderer 00000000-0000-4000-8000-000000000101 00000000-0000-4000-8000-00000
 end
 ```
 
-`RigidBodyComponent` and `ColliderComponent` still contain process-local adapter
-handles. Their compatibility records currently round-trip, but typed persistent
-physics authoring descriptors will replace those opaque values before the V2
-contract is declared complete.
+`RigidBodyComponent` and `ColliderComponent` are persistent authoring
+descriptors, not runtime handles. They store motion type, density, gravity,
+damping, CCD intent, primitive shape, dimensions, friction, restitution, and
+trigger state. Play-mode adapters create process-local body/collider IDs and
+retain those mappings outside the scene. Legacy V1 numeric bindings remain
+readable and migrate to dynamic-body/box defaults; V2 never writes those IDs.
+
+```text
+rigid-body dynamic 1 1 0.05 0.05 false
+collider box 0.5 0.5 0.5 0.5 0.1 false
+```
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++

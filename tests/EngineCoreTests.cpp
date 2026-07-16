@@ -103,12 +103,15 @@ TEST_CASE("Scene V2 migrates V1 defaults and resolves forward hierarchy referenc
 {
     kairo::assets::AssetRegistry assets;
     const std::string versionOne =
-        "kairo-scene 1\nentity 5 \"Legacy\"\ntransform 0 0 0 0 0 0 1 1 1 1\nend\n";
+        "kairo-scene 1\nentity 5 \"Legacy\"\ntransform 0 0 0 0 0 0 1 1 1 1\n"
+        "rigid-body 17\ncollider 23\nend\n";
     const Scene legacy = ParseScene(versionOne, assets);
     CHECK(legacy.IsEnabled({ 5u }));
     CHECK(legacy.Layer({ 5u }) == 0u);
     CHECK(legacy.Tags({ 5u }).empty());
     CHECK_FALSE(legacy.Parent({ 5u }).has_value());
+    CHECK(legacy.RigidBody({ 5u }).Motion == RigidBodyMotion::Dynamic);
+    CHECK(legacy.Collider({ 5u }).Shape == ColliderShape::Box);
     CHECK(SerializeScene(legacy, assets).starts_with("kairo-scene 2\n"));
 
     const std::string versionTwo =
@@ -147,16 +150,17 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     original.SetMeshRenderer(cube, { { MeshAsset }, { MaterialAsset }, false });
     const Entity camera = original.CreateEntityWithID({ 42u }, "Main Camera");
     original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
-    original.SetRigidBody(cube, { 7u });
-    original.SetCollider(cube, { 11u });
+    original.SetRigidBody(cube, { RigidBodyMotion::Kinematic, 2.5f, 0.25f, 0.1f, 0.2f, true });
+    original.SetCollider(cube, { ColliderShape::Capsule, { 0.5f, 0.5f, 0.5f },
+        0.75f, 1.25f, 0.8f, 0.35f, true });
     original.SetParent(cube, camera);
     original.SetEnabled(cube, false);
     original.SetLayer(cube, 4u);
     original.AddTag(cube, "hero");
 
     const std::string encoded = SerializeScene(original, assets);
-    CHECK(encoded.find("rigid-body 7") != std::string::npos);
-    CHECK(encoded.find("collider 11") != std::string::npos);
+    CHECK(encoded.find("rigid-body kinematic ") != std::string::npos);
+    CHECK(encoded.find("collider capsule ") != std::string::npos);
     Scene restored = ParseScene(encoded, assets);
     REQUIRE(restored.Entities() == std::vector<Entity>{ cube, camera });
     CHECK(restored.Name(cube).Value == "Cube \"Hero\"");
@@ -164,8 +168,13 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     CHECK(restored.MeshRenderer(cube).MeshAsset.ID == MeshAsset);
     CHECK_FALSE(restored.MeshRenderer(cube).Visible);
     CHECK(restored.Camera(camera).Primary);
-    CHECK(restored.RigidBody(cube).Body == 7u);
-    CHECK(restored.Collider(cube).Collider == 11u);
+    CHECK(restored.RigidBody(cube).Motion == RigidBodyMotion::Kinematic);
+    CHECK(restored.RigidBody(cube).Density == 2.5f);
+    CHECK(restored.RigidBody(cube).Continuous);
+    CHECK(restored.Collider(cube).Shape == ColliderShape::Capsule);
+    CHECK(restored.Collider(cube).Radius == 0.75f);
+    CHECK(restored.Collider(cube).HalfHeight == 1.25f);
+    CHECK(restored.Collider(cube).IsTrigger);
     CHECK(restored.Parent(cube) == camera);
     CHECK_FALSE(restored.IsEnabled(cube));
     CHECK(restored.Layer(cube) == 4u);
@@ -277,7 +286,7 @@ TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngin
     REQUIRE_THROWS(camera.Validate());
 }
 
-TEST_CASE("Scene owns optional runtime components and stable render extraction", "[KairoEngineCore][Scene][Components]")
+TEST_CASE("Scene owns optional authored components and stable render extraction", "[KairoEngineCore][Scene][Components]")
 {
     Scene scene;
     const Entity hidden = scene.CreateEntity("Hidden");
@@ -287,20 +296,29 @@ TEST_CASE("Scene owns optional runtime components and stable render extraction",
     scene.SetMeshRenderer(hidden, { { MeshAsset }, { MaterialAsset }, false });
     scene.SetMeshRenderer(visible, { { MeshAsset }, { MaterialAsset }, true });
     scene.SetCamera(camera, CameraComponent{ .Primary = true });
-    scene.SetRigidBody(visible, { 0u });
-    scene.SetCollider(visible, { 0u });
+    scene.SetRigidBody(visible, {});
+    scene.SetCollider(visible, {});
 
     REQUIRE(scene.HasMeshRenderer(visible));
     CHECK(scene.MeshRenderer(visible).MeshAsset.ID == MeshAsset);
     REQUIRE(scene.HasCamera(camera));
     CHECK(scene.Camera(camera).Primary);
-    CHECK(scene.RigidBody(visible).Body == 0u);
-    CHECK(scene.Collider(visible).Collider == 0u);
+    CHECK(scene.RigidBody(visible).Motion == RigidBodyMotion::Dynamic);
+    CHECK(scene.Collider(visible).Shape == ColliderShape::Box);
     CHECK(scene.RenderableEntities() == std::vector<Entity>{ visible });
 
     MeshRendererComponent invalid{ { MeshAsset }, {}, true };
     REQUIRE_THROWS_AS(scene.SetMeshRenderer(visible, invalid), std::invalid_argument);
     CHECK(scene.MeshRenderer(visible).MaterialAsset.ID == MaterialAsset);
+
+    auto invalidBody = scene.RigidBody(visible);
+    invalidBody.Density = 0.0f;
+    REQUIRE_THROWS_AS(scene.SetRigidBody(visible, invalidBody), std::invalid_argument);
+    CHECK(scene.RigidBody(visible).Density == 1.0f);
+    auto invalidCollider = scene.Collider(visible);
+    invalidCollider.Restitution = 1.5f;
+    REQUIRE_THROWS_AS(scene.SetCollider(visible, invalidCollider), std::invalid_argument);
+    CHECK(scene.Collider(visible).Restitution == 0.1f);
 
     CHECK(scene.RemoveMeshRenderer(visible));
     CHECK_FALSE(scene.RemoveMeshRenderer(visible));

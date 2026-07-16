@@ -121,21 +121,37 @@ export namespace kairo::engine
 
         registry.Register({
             .Key = "Kairo.Engine.RigidBodyComponent",
-            .DisplayName = "Rigid Body Binding",
+            .DisplayName = "Rigid Body",
             .Category = "Physics",
             .Properties = {
-                MakeMemberProperty<RigidBodyComponent>({ "body", "Body ID", "Binding", "Opaque PhysicsWorld body identifier",
-                    PropertyFlags::Advanced, std::nullopt, 0u }, &RigidBodyComponent::Body)
+                MakeMemberProperty<RigidBodyComponent>({ "density", "Density", "Mass", "Mass density used for generated mass properties",
+                    PropertyFlags::None, NumericRange{ 0.000001, 1'000'000.0, 0.05 }, 0u }, &RigidBodyComponent::Density),
+                MakeMemberProperty<RigidBodyComponent>({ "gravity-scale", "Gravity Scale", "Motion", "Multiplier applied to world gravity",
+                    PropertyFlags::None, NumericRange{ -1000.0, 1000.0, 0.05 }, 0u }, &RigidBodyComponent::GravityScale),
+                MakeMemberProperty<RigidBodyComponent>({ "linear-damping", "Linear Damping", "Motion", "Non-negative linear velocity damping",
+                    PropertyFlags::None, NumericRange{ 0.0, 1000.0, 0.01 }, 0u }, &RigidBodyComponent::LinearDamping),
+                MakeMemberProperty<RigidBodyComponent>({ "angular-damping", "Angular Damping", "Motion", "Non-negative angular velocity damping",
+                    PropertyFlags::None, NumericRange{ 0.0, 1000.0, 0.01 }, 0u }, &RigidBodyComponent::AngularDamping),
+                MakeMemberProperty<RigidBodyComponent>({ "continuous", "Continuous Detection", "Collision", "Enables continuous collision detection for fast bodies",
+                    PropertyFlags::None, std::nullopt, 0u }, &RigidBodyComponent::Continuous)
             }
         });
 
         registry.Register({
             .Key = "Kairo.Engine.ColliderComponent",
-            .DisplayName = "Collider Binding",
+            .DisplayName = "Collider",
             .Category = "Physics",
             .Properties = {
-                MakeMemberProperty<ColliderComponent>({ "collider", "Collider ID", "Binding", "Opaque PhysicsWorld collider identifier",
-                    PropertyFlags::Advanced, std::nullopt, 0u }, &ColliderComponent::Collider)
+                MakeMemberProperty<ColliderComponent>({ "radius", "Radius", "Shape", "Sphere or capsule radius",
+                    PropertyFlags::None, NumericRange{ 0.000001, 1'000'000.0, 0.01 }, 0u }, &ColliderComponent::Radius),
+                MakeMemberProperty<ColliderComponent>({ "half-height", "Half Height", "Shape", "Capsule segment half-height",
+                    PropertyFlags::None, NumericRange{ 0.000001, 1'000'000.0, 0.01 }, 0u }, &ColliderComponent::HalfHeight),
+                MakeMemberProperty<ColliderComponent>({ "friction", "Friction", "Material", "Non-negative Coulomb friction coefficient",
+                    PropertyFlags::None, NumericRange{ 0.0, 1000.0, 0.01 }, 0u }, &ColliderComponent::Friction),
+                MakeMemberProperty<ColliderComponent>({ "restitution", "Restitution", "Material", "Bounciness in the inclusive range [0, 1]",
+                    PropertyFlags::None, NumericRange{ 0.0, 1.0, 0.01 }, 0u }, &ColliderComponent::Restitution),
+                MakeMemberProperty<ColliderComponent>({ "is-trigger", "Is Trigger", "Collision", "Reports overlap events without contact response",
+                    PropertyFlags::None, std::nullopt, 0u }, &ColliderComponent::IsTrigger)
             }
         });
     }

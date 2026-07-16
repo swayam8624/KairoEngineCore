@@ -225,9 +225,14 @@ export namespace kairo::engine
             return removed;
         }
 
-        /// Physics IDs are opaque runtime handles. Presence of the component,
-        /// not a sentinel numeric value, determines whether an entity is bound.
-        void SetRigidBody(Entity entity, RigidBodyComponent component) { RecordFor(entity).RigidBody = component; }
+        /// Stores renderer-independent authored physics after validating it;
+        /// runtime world handles are created by a play-mode adapter.
+        void SetRigidBody(Entity entity, RigidBodyComponent component)
+        {
+            Record& record = RecordFor(entity);
+            component.Validate();
+            record.RigidBody = component;
+        }
         [[nodiscard]] bool HasRigidBody(Entity entity) const { return RecordFor(entity).RigidBody.has_value(); }
         [[nodiscard]] RigidBodyComponent& RigidBody(Entity entity) { return RequireComponent(RecordFor(entity).RigidBody, "rigid body"); }
         [[nodiscard]] const RigidBodyComponent& RigidBody(Entity entity) const { return RequireComponent(RecordFor(entity).RigidBody, "rigid body"); }
@@ -239,7 +244,12 @@ export namespace kairo::engine
             return removed;
         }
 
-        void SetCollider(Entity entity, ColliderComponent component) { RecordFor(entity).Collider = component; }
+        void SetCollider(Entity entity, ColliderComponent component)
+        {
+            Record& record = RecordFor(entity);
+            component.Validate();
+            record.Collider = component;
+        }
         [[nodiscard]] bool HasCollider(Entity entity) const { return RecordFor(entity).Collider.has_value(); }
         [[nodiscard]] ColliderComponent& Collider(Entity entity) { return RequireComponent(RecordFor(entity).Collider, "collider"); }
         [[nodiscard]] const ColliderComponent& Collider(Entity entity) const { return RequireComponent(RecordFor(entity).Collider, "collider"); }

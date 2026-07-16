@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <stdexcept>
@@ -9,6 +10,7 @@ module;
 export module Kairo.EngineCore.RuntimeComponents;
 
 import Kairo.Assets;
+import Kairo.Foundation.Math.Vector;
 
 export namespace kairo::engine
 {
@@ -88,12 +90,58 @@ export namespace kairo::engine
         }
     };
 
-    /// Non-owning body/collider references. Physics adapters resolve them
-    /// against a PhysicsWorld. Component absence represents no attachment;
-    /// numeric value zero remains available because KairoPhysicsEngine assigns
-    /// valid body and collider IDs from zero. These types intentionally carry
-    /// no PhysicsEngine headers, preventing that dependency from leaking into
-    /// the reusable engine core.
-    struct RigidBodyComponent final { std::uint32_t Body = 0u; };
-    struct ColliderComponent final { std::uint32_t Collider = 0u; };
+    enum class RigidBodyMotion : std::uint8_t { Static, Dynamic, Kinematic };
+    enum class ColliderShape : std::uint8_t { Box, Sphere, Capsule };
+
+    /// Persistent physics authoring data. Runtime body IDs belong to the world
+    /// adapter and are deliberately absent from scenes.
+    struct RigidBodyComponent final
+    {
+        RigidBodyMotion Motion = RigidBodyMotion::Dynamic;
+        float Density = 1.0f;
+        float GravityScale = 1.0f;
+        float LinearDamping = 0.05f;
+        float AngularDamping = 0.05f;
+        bool Continuous = false;
+
+        void Validate() const
+        {
+            if (!std::isfinite(Density) || Density <= 0.0f)
+                throw std::invalid_argument("Rigid body density must be finite and positive.");
+            if (!std::isfinite(GravityScale))
+                throw std::invalid_argument("Rigid body gravity scale must be finite.");
+            if (!std::isfinite(LinearDamping) || LinearDamping < 0.0f ||
+                !std::isfinite(AngularDamping) || AngularDamping < 0.0f)
+                throw std::invalid_argument("Rigid body damping must be finite and non-negative.");
+        }
+    };
+
+    /// Persistent primitive collider descriptor in entity-local space.
+    /// HalfExtents apply to boxes, Radius to spheres/capsules, and HalfHeight
+    /// is the capsule segment half-height excluding its hemispherical caps.
+    struct ColliderComponent final
+    {
+        ColliderShape Shape = ColliderShape::Box;
+        kairo::foundation::math::Vec3f HalfExtents{ 0.5f, 0.5f, 0.5f };
+        float Radius = 0.5f;
+        float HalfHeight = 0.5f;
+        float Friction = 0.5f;
+        float Restitution = 0.1f;
+        bool IsTrigger = false;
+
+        void Validate() const
+        {
+            const auto positiveFinite = [](float value) {
+                return std::isfinite(value) && value > 0.0f;
+            };
+            if (!positiveFinite(HalfExtents.x) || !positiveFinite(HalfExtents.y) ||
+                !positiveFinite(HalfExtents.z) || !positiveFinite(Radius) ||
+                !positiveFinite(HalfHeight))
+                throw std::invalid_argument("Collider dimensions must be finite and positive.");
+            if (!std::isfinite(Friction) || Friction < 0.0f ||
+                !std::isfinite(Restitution) || Restitution < 0.0f || Restitution > 1.0f)
+                throw std::invalid_argument(
+                    "Collider friction must be non-negative and restitution must be in [0, 1].");
+        }
+    };
 }
