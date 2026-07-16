@@ -177,8 +177,9 @@ export namespace kairo::engine
     /// Input: a complete UTF-8 `kairo-scene 1` document and the project asset registry.
     /// Output: a new scene with restored IDs and validated typed asset references.
     /// Task: deserialize authored state with deterministic behavior and exact
-    /// line/column diagnostics. Runtime body/collider handles are intentionally
-    /// absent because adapters recreate them when entering play mode.
+    /// line/column diagnostics. Physics binding presence and its opaque
+    /// authoring token round-trip; adapters may replace that token in a cloned
+    /// runtime scene when entering play mode.
     [[nodiscard]] inline Scene ParseScene(std::string_view source, const kairo::assets::AssetRegistry& assets)
     {
         using namespace scene_format_detail;
@@ -190,6 +191,8 @@ export namespace kairo::engine
         bool transformSeen = false;
         bool meshSeen = false;
         bool cameraSeen = false;
+        bool rigidBodySeen = false;
+        bool colliderSeen = false;
         std::istringstream input{ std::string(source) };
         std::string lineText;
         std::size_t lineNumber = 0u;
@@ -223,6 +226,8 @@ export namespace kairo::engine
                 transformSeen = false;
                 meshSeen = false;
                 cameraSeen = false;
+                rigidBodySeen = false;
+                colliderSeen = false;
                 continue;
             }
 
@@ -279,6 +284,20 @@ export namespace kairo::engine
                 catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
                 cameraSeen = true;
             }
+            else if (tokens[0].Text == "rigid-body")
+            {
+                if (rigidBodySeen) throw SceneFormatError(lineNumber, tokens[0].Column, "duplicate rigid body component");
+                RequireCount(tokens, 2u, lineNumber, "rigid-body");
+                scene.SetRigidBody(*current, { ParseUInt32(tokens[1], lineNumber, "rigid body ID") });
+                rigidBodySeen = true;
+            }
+            else if (tokens[0].Text == "collider")
+            {
+                if (colliderSeen) throw SceneFormatError(lineNumber, tokens[0].Column, "duplicate collider component");
+                RequireCount(tokens, 2u, lineNumber, "collider");
+                scene.SetCollider(*current, { ParseUInt32(tokens[1], lineNumber, "collider ID") });
+                colliderSeen = true;
+            }
             else if (tokens[0].Text == "end")
             {
                 RequireCount(tokens, 1u, lineNumber, "end");
@@ -331,6 +350,10 @@ export namespace kairo::engine
                 output << "camera " << camera.VerticalFovRadians << ' ' << camera.NearPlane << ' '
                     << camera.FarPlane << ' ' << (camera.Primary ? "true" : "false") << '\n';
             }
+            if (scene.HasRigidBody(entity))
+                output << "rigid-body " << scene.RigidBody(entity).Body << '\n';
+            if (scene.HasCollider(entity))
+                output << "collider " << scene.Collider(entity).Collider << '\n';
             output << "end\n";
         }
         return output.str();

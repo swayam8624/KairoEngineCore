@@ -67,9 +67,11 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     const Entity camera = original.CreateEntityWithID({ 42u }, "Main Camera");
     original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
     original.SetRigidBody(cube, { 7u });
+    original.SetCollider(cube, { 11u });
 
     const std::string encoded = SerializeScene(original, assets);
-    CHECK(encoded.find("rigid") == std::string::npos);
+    CHECK(encoded.find("rigid-body 7") != std::string::npos);
+    CHECK(encoded.find("collider 11") != std::string::npos);
     Scene restored = ParseScene(encoded, assets);
     REQUIRE(restored.Entities() == std::vector<Entity>{ cube, camera });
     CHECK(restored.Name(cube).Value == "Cube \"Hero\"");
@@ -77,7 +79,8 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     CHECK(restored.MeshRenderer(cube).MeshAsset.ID == MeshAsset);
     CHECK_FALSE(restored.MeshRenderer(cube).Visible);
     CHECK(restored.Camera(camera).Primary);
-    CHECK_FALSE(restored.HasRigidBody(cube));
+    CHECK(restored.RigidBody(cube).Body == 7u);
+    CHECK(restored.Collider(cube).Collider == 11u);
     CHECK(restored.CreateEntity("After restore").Value == 43u);
 }
 
