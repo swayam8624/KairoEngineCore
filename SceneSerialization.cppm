@@ -370,8 +370,7 @@ export namespace kairo::engine
             output.flush();
             if (!output) throw std::runtime_error("Cannot write complete temporary scene.");
             output.close();
-            if (std::rename(temporary.string().c_str(), path.string().c_str()) != 0)
-                throw std::runtime_error("Cannot atomically replace Kairo scene.");
+            kairo::assets::ReplaceFileAtomically(temporary, path);
         }
         catch (...)
         {
