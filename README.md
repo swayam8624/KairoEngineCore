@@ -70,26 +70,37 @@ asset identity API but never owns decoded asset or GPU-resource lifetimes.
 
 ## Scene persistence
 
-`Kairo.EngineCore.SceneSerialization` provides deterministic `kairo-scene 1`
+`Kairo.EngineCore.SceneSerialization` provides deterministic `kairo-scene 2`
 text serialization with stable entity IDs, quoted names, transforms, mesh
-renderer bindings, and cameras. Loading validates mesh/material UUIDs and their
+renderer bindings, cameras, parent relationships, enabled state, 64 layers,
+and bounded sorted tags. Loading validates mesh/material UUIDs and their
 declared types against the project's live `AssetRegistry`. Parse failures carry
 exact one-based line and column positions; file loading replaces the destination
 scene only after the complete document validates, and saving uses a flushed
 same-directory temporary followed by atomic replacement.
 
+V1 remains readable. It migrates in memory to root entities that are enabled,
+on layer zero, with no tags; only an explicit save emits V2. Parent references
+may point forward in the file, but missing entities, self-parenting, and cycles
+are rejected with the relationship's source location. Runtime reparenting keeps
+the local transform unchanged, and destroying a parent destroys its complete
+descendant subtree so no dangling relationships remain.
+
 ```text
-kairo-scene 1
+kairo-scene 2
 entity 9 "Hero Cube"
+enabled true
+layer 2
+tag "player"
 transform 0 1 0 0 0 0 1 1 1 1
 mesh-renderer 00000000-0000-4000-8000-000000000101 00000000-0000-4000-8000-000000000102 true
 end
 ```
 
-`RigidBodyComponent` and `ColliderComponent` contain process-local adapter
-handles, so they are intentionally not serialized. A later persistent physics
-authoring component will describe body/collider creation; play mode will then
-rebuild runtime handles from that authored data.
+`RigidBodyComponent` and `ColliderComponent` still contain process-local adapter
+handles. Their compatibility records currently round-trip, but typed persistent
+physics authoring descriptors will replace those opaque values before the V2
+contract is declared complete.
 
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++

@@ -1,12 +1,54 @@
 module;
+#include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <stdexcept>
+#include <string>
+#include <string_view>
+#include <vector>
 export module Kairo.EngineCore.RuntimeComponents;
 
 import Kairo.Assets;
 
 export namespace kairo::engine
 {
+    inline constexpr std::uint32_t MaximumSceneLayer = 63u;
+    inline constexpr std::size_t MaximumEntityTags = 32u;
+    inline constexpr std::size_t MaximumEntityTagBytes = 64u;
+
+    /// Authored entity-wide behavior shared by editor and runtime systems.
+    /// Layer zero is the default; layers are bounded to 0..63 so masks fit one
+    /// portable 64-bit value. Tags are sorted for deterministic persistence.
+    struct EntitySettingsComponent final
+    {
+        bool Enabled = true;
+        std::uint32_t Layer = 0u;
+        std::vector<std::string> Tags;
+
+        static void ValidateTag(std::string_view tag)
+        {
+            if (tag.empty() || tag.size() > MaximumEntityTagBytes)
+                throw std::invalid_argument("Entity tags must contain between 1 and 64 bytes.");
+            if (std::ranges::any_of(tag, [](unsigned char character) {
+                return character < 0x20u || character == 0x7fu; }))
+                throw std::invalid_argument("Entity tags cannot contain ASCII control characters.");
+        }
+
+        void Validate() const
+        {
+            if (Layer > MaximumSceneLayer)
+                throw std::invalid_argument("Entity layer must be between 0 and 63.");
+            if (Tags.size() > MaximumEntityTags)
+                throw std::length_error("Entity exceeds its 32-tag safety limit.");
+            for (std::size_t index = 0u; index < Tags.size(); ++index)
+            {
+                ValidateTag(Tags[index]);
+                if (index > 0u && Tags[index - 1u] >= Tags[index])
+                    throw std::invalid_argument("Entity tags must be unique and sorted.");
+            }
+        }
+    };
+
     /// Persistent typed handles keep scene serialization independent from a
     /// concrete loader while preserving references across asset path moves.
     struct MeshRendererComponent final

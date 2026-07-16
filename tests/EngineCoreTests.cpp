@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 import Kairo.EngineCore;
+import Kairo.Foundation.Math.Vector;
 import Kairo.Reflection;
 using namespace kairo::engine;
 
@@ -51,6 +52,86 @@ TEST_CASE("Scene restores explicit IDs without corrupting automatic allocation",
     REQUIRE_THROWS_AS(exhausted.CreateEntity(), std::overflow_error);
 }
 
+TEST_CASE("Scene hierarchy enforces ownership cycles and deterministic metadata",
+    "[KairoEngineCore][Scene][Hierarchy]")
+{
+    Scene scene;
+    const Entity root = scene.CreateEntity("Root");
+    const Entity child = scene.CreateEntity("Child");
+    const Entity grandchild = scene.CreateEntity("Grandchild");
+    const Entity alternate = scene.CreateEntity("Alternate");
+    scene.SetParent(child, root);
+    scene.SetParent(grandchild, child);
+    scene.Transform(root).Local.Translation = { 10.0f, 0.0f, 0.0f };
+    scene.Transform(child).Local.Translation = { 0.0f, 2.0f, 0.0f };
+    scene.Transform(grandchild).Local.Translation = { 0.0f, 0.0f, 3.0f };
+    CHECK(scene.Parent(child) == root);
+    CHECK(scene.Children(root) == std::vector<Entity>{ child });
+    CHECK(scene.RootEntities() == std::vector<Entity>{ root, alternate });
+    CHECK(scene.WorldTransform(grandchild).Translation ==
+        kairo::foundation::math::Vec3f{ 10.0f, 2.0f, 3.0f });
+    REQUIRE_THROWS_AS(scene.SetParent(root, grandchild), std::invalid_argument);
+    CHECK_FALSE(scene.Parent(root).has_value());
+    CHECK(scene.Parent(grandchild) == child);
+
+    scene.SetParent(child, alternate);
+    CHECK(scene.Children(root).empty());
+    CHECK(scene.Children(alternate) == std::vector<Entity>{ child });
+    scene.SetEnabled(child, false);
+    scene.SetLayer(child, 7u);
+    scene.AddTag(child, "player");
+    scene.AddTag(child, "actor");
+    scene.AddTag(child, "player");
+    CHECK_FALSE(scene.IsEnabled(child));
+    CHECK_FALSE(scene.IsActiveInHierarchy(grandchild));
+    CHECK(scene.Layer(child) == 7u);
+    CHECK(scene.Tags(child) == std::vector<std::string>{ "actor", "player" });
+    CHECK(scene.HasTag(child, "player"));
+    CHECK(scene.RemoveTag(child, "player"));
+    CHECK_FALSE(scene.RemoveTag(child, "player"));
+    REQUIRE_THROWS_AS(scene.SetLayer(child, MaximumSceneLayer + 1u), std::invalid_argument);
+
+    scene.DestroyEntity(alternate);
+    CHECK(scene.Contains(root));
+    CHECK_FALSE(scene.Contains(alternate));
+    CHECK_FALSE(scene.Contains(child));
+    CHECK_FALSE(scene.Contains(grandchild));
+}
+
+TEST_CASE("Scene V2 migrates V1 defaults and resolves forward hierarchy references",
+    "[KairoEngineCore][Scene][Serialization][V2]")
+{
+    kairo::assets::AssetRegistry assets;
+    const std::string versionOne =
+        "kairo-scene 1\nentity 5 \"Legacy\"\ntransform 0 0 0 0 0 0 1 1 1 1\nend\n";
+    const Scene legacy = ParseScene(versionOne, assets);
+    CHECK(legacy.IsEnabled({ 5u }));
+    CHECK(legacy.Layer({ 5u }) == 0u);
+    CHECK(legacy.Tags({ 5u }).empty());
+    CHECK_FALSE(legacy.Parent({ 5u }).has_value());
+    CHECK(SerializeScene(legacy, assets).starts_with("kairo-scene 2\n"));
+
+    const std::string versionTwo =
+        "kairo-scene 2\n"
+        "entity 2 \"Child\"\nparent 1\nenabled false\nlayer 3\ntag \"player\"\n"
+        "transform 0 1 0 0 0 0 1 1 1 1\nend\n"
+        "entity 1 \"Root\"\nenabled true\nlayer 0\n"
+        "transform 0 0 0 0 0 0 1 1 1 1\nend\n";
+    const Scene restored = ParseScene(versionTwo, assets);
+    CHECK(restored.Parent({ 2u }) == Entity{ 1u });
+    CHECK(restored.Children({ 1u }) == std::vector<Entity>{ Entity{ 2u } });
+    CHECK_FALSE(restored.IsEnabled({ 2u }));
+    CHECK(restored.Layer({ 2u }) == 3u);
+    CHECK(restored.HasTag({ 2u }, "player"));
+    CHECK(ParseScene(SerializeScene(restored, assets), assets).Parent({ 2u }) == Entity{ 1u });
+
+    REQUIRE_THROWS_AS(ParseScene(
+        "kairo-scene 2\nentity 1 \"Orphan\"\nparent 99\nend\n", assets), SceneFormatError);
+    REQUIRE_THROWS_AS(ParseScene(
+        "kairo-scene 2\nentity 1 \"A\"\nparent 2\nend\n"
+        "entity 2 \"B\"\nparent 1\nend\n", assets), SceneFormatError);
+}
+
 TEST_CASE("Scene serialization round trips authored components and persistent assets", "[KairoEngineCore][Scene][Serialization]")
 {
     kairo::assets::AssetRegistry assets;
@@ -68,6 +149,10 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
     original.SetRigidBody(cube, { 7u });
     original.SetCollider(cube, { 11u });
+    original.SetParent(cube, camera);
+    original.SetEnabled(cube, false);
+    original.SetLayer(cube, 4u);
+    original.AddTag(cube, "hero");
 
     const std::string encoded = SerializeScene(original, assets);
     CHECK(encoded.find("rigid-body 7") != std::string::npos);
@@ -81,6 +166,10 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     CHECK(restored.Camera(camera).Primary);
     CHECK(restored.RigidBody(cube).Body == 7u);
     CHECK(restored.Collider(cube).Collider == 11u);
+    CHECK(restored.Parent(cube) == camera);
+    CHECK_FALSE(restored.IsEnabled(cube));
+    CHECK(restored.Layer(cube) == 4u);
+    CHECK(restored.HasTag(cube, "hero"));
     CHECK(restored.CreateEntity("After restore").Value == 43u);
 }
 

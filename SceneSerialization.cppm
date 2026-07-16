@@ -174,7 +174,7 @@ export namespace kairo::engine
         }
     }
 
-    /// Input: a complete UTF-8 `kairo-scene 1` document and the project asset registry.
+    /// Input: a complete UTF-8 `kairo-scene 1|2` document and the project asset registry.
     /// Output: a new scene with restored IDs and validated typed asset references.
     /// Task: deserialize authored state with deterministic behavior and exact
     /// line/column diagnostics. Physics binding presence and its opaque
@@ -186,13 +186,25 @@ export namespace kairo::engine
         if (source.size() > MaxSceneBytes) throw std::length_error("Kairo scene exceeds the 64 MiB safety limit.");
 
         Scene scene;
+        struct PendingParent final
+        {
+            Entity Child;
+            Entity Parent;
+            std::size_t Line = 1u;
+            std::size_t Column = 1u;
+        };
+        std::vector<PendingParent> pendingParents;
         std::optional<Entity> current;
         bool headerSeen = false;
+        std::uint32_t version = 0u;
         bool transformSeen = false;
         bool meshSeen = false;
         bool cameraSeen = false;
         bool rigidBodySeen = false;
         bool colliderSeen = false;
+        bool parentSeen = false;
+        bool enabledSeen = false;
+        bool layerSeen = false;
         std::istringstream input{ std::string(source) };
         std::string lineText;
         std::size_t lineNumber = 0u;
@@ -206,7 +218,9 @@ export namespace kairo::engine
             {
                 RequireCount(tokens, 2u, lineNumber, "kairo-scene header");
                 if (tokens[0].Text != "kairo-scene") throw SceneFormatError(lineNumber, tokens[0].Column, "expected kairo-scene header");
-                if (tokens[1].Text != "1") throw SceneFormatError(lineNumber, tokens[1].Column, "unsupported scene version");
+                if (tokens[1].Text == "1") version = 1u;
+                else if (tokens[1].Text == "2") version = 2u;
+                else throw SceneFormatError(lineNumber, tokens[1].Column, "unsupported scene version");
                 headerSeen = true;
                 continue;
             }
@@ -228,11 +242,63 @@ export namespace kairo::engine
                 cameraSeen = false;
                 rigidBodySeen = false;
                 colliderSeen = false;
+                parentSeen = false;
+                enabledSeen = false;
+                layerSeen = false;
                 continue;
             }
 
             if (!current.has_value()) throw SceneFormatError(lineNumber, tokens[0].Column, "statement outside entity record");
-            if (tokens[0].Text == "transform")
+            if (tokens[0].Text == "parent")
+            {
+                if (version < 2u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "parent requires kairo-scene 2");
+                if (parentSeen) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "duplicate parent relationship");
+                RequireCount(tokens, 2u, lineNumber, "parent");
+                pendingParents.push_back({ *current,
+                    { ParseUInt32(tokens[1], lineNumber, "parent entity ID") },
+                    lineNumber, tokens[1].Column });
+                parentSeen = true;
+            }
+            else if (tokens[0].Text == "enabled")
+            {
+                if (version < 2u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "enabled requires kairo-scene 2");
+                if (enabledSeen) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "duplicate enabled state");
+                RequireCount(tokens, 2u, lineNumber, "enabled");
+                scene.SetEnabled(*current, ParseBool(tokens[1], lineNumber));
+                enabledSeen = true;
+            }
+            else if (tokens[0].Text == "layer")
+            {
+                if (version < 2u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "layer requires kairo-scene 2");
+                if (layerSeen) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "duplicate layer state");
+                RequireCount(tokens, 2u, lineNumber, "layer");
+                try { scene.SetLayer(*current, ParseUInt32(tokens[1], lineNumber, "entity layer")); }
+                catch (const std::exception& error)
+                {
+                    throw SceneFormatError(lineNumber, tokens[1].Column, error.what());
+                }
+                layerSeen = true;
+            }
+            else if (tokens[0].Text == "tag")
+            {
+                if (version < 2u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "tag requires kairo-scene 2");
+                RequireCount(tokens, 2u, lineNumber, "tag");
+                if (scene.HasTag(*current, tokens[1].Text))
+                    throw SceneFormatError(lineNumber, tokens[1].Column, "duplicate entity tag");
+                try { scene.AddTag(*current, tokens[1].Text); }
+                catch (const std::exception& error)
+                {
+                    throw SceneFormatError(lineNumber, tokens[1].Column, error.what());
+                }
+            }
+            else if (tokens[0].Text == "transform")
             {
                 if (transformSeen) throw SceneFormatError(lineNumber, tokens[0].Column, "duplicate transform component");
                 RequireCount(tokens, 11u, lineNumber, "transform");
@@ -311,10 +377,21 @@ export namespace kairo::engine
 
         if (!headerSeen) throw SceneFormatError(1u, 1u, "missing kairo-scene header");
         if (current.has_value()) throw SceneFormatError(lineNumber + 1u, 1u, "entity record is missing end");
+        for (const PendingParent& relationship : pendingParents)
+        {
+            if (!scene.Contains(relationship.Parent))
+                throw SceneFormatError(relationship.Line, relationship.Column,
+                    "parent entity ID does not exist");
+            try { scene.SetParent(relationship.Child, relationship.Parent); }
+            catch (const std::exception& error)
+            {
+                throw SceneFormatError(relationship.Line, relationship.Column, error.what());
+            }
+        }
         return scene;
     }
 
-    /// Output: stable ID-ordered and diff-friendly `kairo-scene 1` text.
+    /// Output: stable ID-ordered and diff-friendly `kairo-scene 2` text.
     /// Preconditions: transforms and public components must remain valid, and
     /// every mesh/material reference must resolve with its declared asset type.
     [[nodiscard]] inline std::string SerializeScene(const Scene& scene, const kairo::assets::AssetRegistry& assets)
@@ -322,7 +399,7 @@ export namespace kairo::engine
         using namespace scene_format_detail;
         std::ostringstream output;
         output << std::setprecision(std::numeric_limits<float>::max_digits10);
-        output << "kairo-scene 1\n";
+        output << "kairo-scene 2\n";
         for (const Entity entity : scene.Entities())
         {
             const auto& transform = scene.Transform(entity).Local;
@@ -331,6 +408,12 @@ export namespace kairo::engine
             if (!IsFinite(transform) || !kairo::foundation::math::IsValid(transform))
                 throw std::invalid_argument("Cannot serialize an invalid entity transform.");
             output << "entity " << entity.Value << ' ' << Quote(scene.Name(entity).Value) << '\n';
+            if (const auto parent = scene.Parent(entity); parent.has_value())
+                output << "parent " << parent->Value << '\n';
+            output << "enabled " << (scene.IsEnabled(entity) ? "true" : "false") << '\n';
+            output << "layer " << scene.Layer(entity) << '\n';
+            for (const std::string& tag : scene.Tags(entity))
+                output << "tag " << Quote(tag) << '\n';
             output << "transform " << transform.Translation.x << ' ' << transform.Translation.y << ' '
                 << transform.Translation.z << ' ' << transform.Rotation.x << ' ' << transform.Rotation.y << ' '
                 << transform.Rotation.z << ' ' << transform.Rotation.w << ' ' << transform.Scale.x << ' '
