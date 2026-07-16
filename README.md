@@ -99,14 +99,15 @@ end
 
 `RigidBodyComponent` and `ColliderComponent` are persistent authoring
 descriptors, not runtime handles. They store motion type, density, gravity,
-damping, primitive shape, dimensions, friction, restitution, and
+damping, primitive shape, dimensions, friction, restitution, category/collision
+masks, and
 trigger state. Play-mode adapters create process-local body/collider IDs and
 retain those mappings outside the scene. Legacy V1 numeric bindings remain
 readable and migrate to dynamic-body/box defaults; V2 never writes those IDs.
 
 ```text
 rigid-body dynamic 1 1 0.05 0.05
-collider box 0.5 0.5 0.5 0.5 0.1 false
+collider box 0.5 0.5 0.5 0.5 0.1 1 4294967295 false
 ```
 
 ```bash

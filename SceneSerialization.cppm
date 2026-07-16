@@ -431,31 +431,37 @@ export namespace kairo::engine
                     collider.Shape = ParseShape(tokens[1], lineNumber);
                     if (collider.Shape == ColliderShape::Box)
                     {
-                        RequireCount(tokens, 8u, lineNumber, "box collider");
+                        RequireCount(tokens, 10u, lineNumber, "box collider");
                         collider.HalfExtents = {
                             ParseFloat(tokens[2], lineNumber, "box half extent x"),
                             ParseFloat(tokens[3], lineNumber, "box half extent y"),
                             ParseFloat(tokens[4], lineNumber, "box half extent z") };
                         collider.Friction = ParseFloat(tokens[5], lineNumber, "friction");
                         collider.Restitution = ParseFloat(tokens[6], lineNumber, "restitution");
-                        collider.IsTrigger = ParseBool(tokens[7], lineNumber);
+                        collider.BelongsTo = ParseUInt32(tokens[7], lineNumber, "category mask");
+                        collider.CollidesWith = ParseUInt32(tokens[8], lineNumber, "collision mask");
+                        collider.IsTrigger = ParseBool(tokens[9], lineNumber);
                     }
                     else if (collider.Shape == ColliderShape::Sphere)
                     {
-                        RequireCount(tokens, 6u, lineNumber, "sphere collider");
+                        RequireCount(tokens, 8u, lineNumber, "sphere collider");
                         collider.Radius = ParseFloat(tokens[2], lineNumber, "sphere radius");
                         collider.Friction = ParseFloat(tokens[3], lineNumber, "friction");
                         collider.Restitution = ParseFloat(tokens[4], lineNumber, "restitution");
-                        collider.IsTrigger = ParseBool(tokens[5], lineNumber);
+                        collider.BelongsTo = ParseUInt32(tokens[5], lineNumber, "category mask");
+                        collider.CollidesWith = ParseUInt32(tokens[6], lineNumber, "collision mask");
+                        collider.IsTrigger = ParseBool(tokens[7], lineNumber);
                     }
                     else
                     {
-                        RequireCount(tokens, 7u, lineNumber, "capsule collider");
+                        RequireCount(tokens, 9u, lineNumber, "capsule collider");
                         collider.Radius = ParseFloat(tokens[2], lineNumber, "capsule radius");
                         collider.HalfHeight = ParseFloat(tokens[3], lineNumber, "capsule half height");
                         collider.Friction = ParseFloat(tokens[4], lineNumber, "friction");
                         collider.Restitution = ParseFloat(tokens[5], lineNumber, "restitution");
-                        collider.IsTrigger = ParseBool(tokens[6], lineNumber);
+                        collider.BelongsTo = ParseUInt32(tokens[6], lineNumber, "category mask");
+                        collider.CollidesWith = ParseUInt32(tokens[7], lineNumber, "collision mask");
+                        collider.IsTrigger = ParseBool(tokens[8], lineNumber);
                     }
                     try { scene.SetCollider(*current, collider); }
                     catch (const std::exception& error)
@@ -553,6 +559,7 @@ export namespace kairo::engine
                 else
                     output << collider.Radius << ' ' << collider.HalfHeight << ' ';
                 output << collider.Friction << ' ' << collider.Restitution << ' '
+                    << collider.BelongsTo << ' ' << collider.CollidesWith << ' '
                     << (collider.IsTrigger ? "true" : "false") << '\n';
             }
             output << "end\n";

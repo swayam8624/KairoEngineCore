@@ -151,8 +151,15 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     const Entity camera = original.CreateEntityWithID({ 42u }, "Main Camera");
     original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
     original.SetRigidBody(cube, { RigidBodyMotion::Kinematic, 2.5f, 0.25f, 0.1f, 0.2f });
-    original.SetCollider(cube, { ColliderShape::Capsule, { 0.5f, 0.5f, 0.5f },
-        0.75f, 1.25f, 0.8f, 0.35f, true });
+    original.SetCollider(cube, {
+        .Shape = ColliderShape::Capsule,
+        .Radius = 0.75f,
+        .HalfHeight = 1.25f,
+        .Friction = 0.8f,
+        .Restitution = 0.35f,
+        .BelongsTo = 8u,
+        .CollidesWith = 3u,
+        .IsTrigger = true });
     original.SetParent(cube, camera);
     original.SetEnabled(cube, false);
     original.SetLayer(cube, 4u);
@@ -173,6 +180,8 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     CHECK(restored.Collider(cube).Shape == ColliderShape::Capsule);
     CHECK(restored.Collider(cube).Radius == 0.75f);
     CHECK(restored.Collider(cube).HalfHeight == 1.25f);
+    CHECK(restored.Collider(cube).BelongsTo == 8u);
+    CHECK(restored.Collider(cube).CollidesWith == 3u);
     CHECK(restored.Collider(cube).IsTrigger);
     CHECK(restored.Parent(cube) == camera);
     CHECK_FALSE(restored.IsEnabled(cube));

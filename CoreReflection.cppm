@@ -148,6 +148,10 @@ export namespace kairo::engine
                     PropertyFlags::None, NumericRange{ 0.0, 1000.0, 0.01 }, 0u }, &ColliderComponent::Friction),
                 MakeMemberProperty<ColliderComponent>({ "restitution", "Restitution", "Material", "Bounciness in the inclusive range [0, 1]",
                     PropertyFlags::None, NumericRange{ 0.0, 1.0, 0.01 }, 0u }, &ColliderComponent::Restitution),
+                MakeMemberProperty<ColliderComponent>({ "belongs-to", "Category Mask", "Filtering", "Bit mask describing this collider's categories",
+                    PropertyFlags::Advanced, std::nullopt, 0u }, &ColliderComponent::BelongsTo),
+                MakeMemberProperty<ColliderComponent>({ "collides-with", "Collision Mask", "Filtering", "Bit mask of categories this collider accepts",
+                    PropertyFlags::Advanced, std::nullopt, 0u }, &ColliderComponent::CollidesWith),
                 MakeMemberProperty<ColliderComponent>({ "is-trigger", "Is Trigger", "Collision", "Reports overlap events without contact response",
                     PropertyFlags::None, std::nullopt, 0u }, &ColliderComponent::IsTrigger)
             }

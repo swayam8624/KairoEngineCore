@@ -126,6 +126,8 @@ export namespace kairo::engine
         float HalfHeight = 0.5f;
         float Friction = 0.5f;
         float Restitution = 0.1f;
+        std::uint32_t BelongsTo = 1u;
+        std::uint32_t CollidesWith = 0xFFFF'FFFFu;
         bool IsTrigger = false;
 
         void Validate() const
@@ -141,6 +143,8 @@ export namespace kairo::engine
                 !std::isfinite(Restitution) || Restitution < 0.0f || Restitution > 1.0f)
                 throw std::invalid_argument(
                     "Collider friction must be non-negative and restitution must be in [0, 1].");
+            if (BelongsTo == 0u)
+                throw std::invalid_argument("Collider category mask must contain at least one bit.");
         }
     };
 }
