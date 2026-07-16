@@ -150,7 +150,7 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     original.SetMeshRenderer(cube, { { MeshAsset }, { MaterialAsset }, false });
     const Entity camera = original.CreateEntityWithID({ 42u }, "Main Camera");
     original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
-    original.SetRigidBody(cube, { RigidBodyMotion::Kinematic, 2.5f, 0.25f, 0.1f, 0.2f, true });
+    original.SetRigidBody(cube, { RigidBodyMotion::Kinematic, 2.5f, 0.25f, 0.1f, 0.2f });
     original.SetCollider(cube, { ColliderShape::Capsule, { 0.5f, 0.5f, 0.5f },
         0.75f, 1.25f, 0.8f, 0.35f, true });
     original.SetParent(cube, camera);
@@ -170,7 +170,6 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     CHECK(restored.Camera(camera).Primary);
     CHECK(restored.RigidBody(cube).Motion == RigidBodyMotion::Kinematic);
     CHECK(restored.RigidBody(cube).Density == 2.5f);
-    CHECK(restored.RigidBody(cube).Continuous);
     CHECK(restored.Collider(cube).Shape == ColliderShape::Capsule);
     CHECK(restored.Collider(cube).Radius == 0.75f);
     CHECK(restored.Collider(cube).HalfHeight == 1.25f);

@@ -400,14 +400,13 @@ export namespace kairo::engine
                 }
                 else
                 {
-                    RequireCount(tokens, 7u, lineNumber, "rigid-body");
+                    RequireCount(tokens, 6u, lineNumber, "rigid-body");
                     RigidBodyComponent body{
                         ParseMotion(tokens[1], lineNumber),
                         ParseFloat(tokens[2], lineNumber, "density"),
                         ParseFloat(tokens[3], lineNumber, "gravity scale"),
                         ParseFloat(tokens[4], lineNumber, "linear damping"),
-                        ParseFloat(tokens[5], lineNumber, "angular damping"),
-                        ParseBool(tokens[6], lineNumber)
+                        ParseFloat(tokens[5], lineNumber, "angular damping")
                     };
                     try { scene.SetRigidBody(*current, body); }
                     catch (const std::exception& error)
@@ -539,7 +538,7 @@ export namespace kairo::engine
                 body.Validate();
                 output << "rigid-body " << MotionName(body.Motion) << ' ' << body.Density << ' '
                     << body.GravityScale << ' ' << body.LinearDamping << ' ' << body.AngularDamping
-                    << ' ' << (body.Continuous ? "true" : "false") << '\n';
+                    << '\n';
             }
             if (scene.HasCollider(entity))
             {

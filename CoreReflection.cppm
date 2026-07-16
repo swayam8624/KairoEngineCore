@@ -131,9 +131,7 @@ export namespace kairo::engine
                 MakeMemberProperty<RigidBodyComponent>({ "linear-damping", "Linear Damping", "Motion", "Non-negative linear velocity damping",
                     PropertyFlags::None, NumericRange{ 0.0, 1000.0, 0.01 }, 0u }, &RigidBodyComponent::LinearDamping),
                 MakeMemberProperty<RigidBodyComponent>({ "angular-damping", "Angular Damping", "Motion", "Non-negative angular velocity damping",
-                    PropertyFlags::None, NumericRange{ 0.0, 1000.0, 0.01 }, 0u }, &RigidBodyComponent::AngularDamping),
-                MakeMemberProperty<RigidBodyComponent>({ "continuous", "Continuous Detection", "Collision", "Enables continuous collision detection for fast bodies",
-                    PropertyFlags::None, std::nullopt, 0u }, &RigidBodyComponent::Continuous)
+                    PropertyFlags::None, NumericRange{ 0.0, 1000.0, 0.01 }, 0u }, &RigidBodyComponent::AngularDamping)
             }
         });
 

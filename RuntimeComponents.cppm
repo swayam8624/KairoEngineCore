@@ -102,7 +102,6 @@ export namespace kairo::engine
         float GravityScale = 1.0f;
         float LinearDamping = 0.05f;
         float AngularDamping = 0.05f;
-        bool Continuous = false;
 
         void Validate() const
         {
