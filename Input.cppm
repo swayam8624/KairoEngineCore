@@ -5,6 +5,7 @@ module;
 #include <cmath>
 #include <cstdint>
 #include <stdexcept>
+#include <string>
 #include <unordered_set>
 
 export module Kairo.EngineCore.Input;
@@ -88,14 +89,11 @@ export namespace kairo::engine
             case EventType::MouseButtonReleased: SetMouseButtonDown(event.A, false); break;
             case EventType::MouseMoved:
             {
-                const InputVector2 next{ static_cast<float>(event.A), static_cast<float>(event.B) };
-                m_MouseDelta = { next.X - m_MousePosition.X, next.Y - m_MousePosition.Y };
-                m_MousePosition = next;
+                SetMousePosition({ static_cast<float>(event.A), static_cast<float>(event.B) });
                 break;
             }
             case EventType::MouseScrolled:
-                m_ScrollDelta.X += static_cast<float>(event.A);
-                m_ScrollDelta.Y += static_cast<float>(event.B);
+                AddScrollDelta({ static_cast<float>(event.A), static_cast<float>(event.B) });
                 break;
             default: break;
             }
@@ -198,6 +196,19 @@ export namespace kairo::engine
         [[nodiscard]] InputVector2 MousePosition() const noexcept { return m_MousePosition; }
         [[nodiscard]] InputVector2 MouseDelta() const noexcept { return m_MouseDelta; }
         [[nodiscard]] InputVector2 ScrollDelta() const noexcept { return m_ScrollDelta; }
+        void SetMousePosition(InputVector2 position)
+        {
+            ValidateVector(position, "Mouse position");
+            m_MouseDelta.X += position.X - m_MousePosition.X;
+            m_MouseDelta.Y += position.Y - m_MousePosition.Y;
+            m_MousePosition = position;
+        }
+        void AddScrollDelta(InputVector2 delta)
+        {
+            ValidateVector(delta, "Mouse scroll delta");
+            m_ScrollDelta.X += delta.X;
+            m_ScrollDelta.Y += delta.Y;
+        }
 
     private:
         std::unordered_set<std::int32_t> m_Keys;
@@ -216,6 +227,11 @@ export namespace kairo::engine
         {
             if (gamepad >= MaximumGamepads || button >= MaximumGamepadButtons)
                 throw std::out_of_range("Gamepad button index is outside the supported input range.");
+        }
+        static void ValidateVector(const InputVector2& value, const char* role)
+        {
+            if (!std::isfinite(value.X) || !std::isfinite(value.Y))
+                throw std::invalid_argument(std::string(role) + " must be finite.");
         }
     };
 }

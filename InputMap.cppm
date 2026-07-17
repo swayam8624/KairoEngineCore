@@ -99,7 +99,6 @@ export namespace kairo::engine
 
         void Validate() const
         {
-            if (m_Actions.empty()) throw std::invalid_argument("Input map requires at least one action.");
             std::unordered_set<std::string> bound;
             for (const auto& binding : m_Bindings)
             {

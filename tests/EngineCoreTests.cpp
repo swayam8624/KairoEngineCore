@@ -380,7 +380,15 @@ TEST_CASE("Versioned input maps evaluate keyboard mouse and gamepad actions",
     input.BeginFrame();
     input.SetMouseButtonDown(MouseButton::Left, true);
     CHECK(input.IsMouseButtonPressed(MouseButton::Left));
+    input.SetMousePosition({ 10.5f, 20.25f });
+    CHECK(input.MouseDelta().X == 10.5f);
+    CHECK(input.MouseDelta().Y == 20.25f);
+    input.AddScrollDelta({ 0.0f, -0.5f });
+    CHECK(input.ScrollDelta().Y == -0.5f);
+    CHECK_THROWS(input.SetMousePosition({ std::numeric_limits<float>::infinity(), 0.0f }));
     CHECK_THROWS(input.SetGamepadAxis(InputState::MaximumGamepads, 0u, 0.0f));
+
+    CHECK(ParseInputActionMap("kairo-input 1\n").Actions().empty());
 
     try
     {
