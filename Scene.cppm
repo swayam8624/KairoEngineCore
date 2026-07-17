@@ -225,6 +225,32 @@ export namespace kairo::engine
             return removed;
         }
 
+        /// Attaches renderer- and VM-independent authored gameplay logic.
+        /// Asset resolution occurs during scene parsing/serialization; direct
+        /// construction validates identity without forcing an asset registry
+        /// into the in-memory scene API.
+        void SetLogic(Entity entity, LogicComponent component)
+        {
+            component.Validate();
+            RecordFor(entity).Logic = component;
+        }
+        [[nodiscard]] bool HasLogic(Entity entity) const { return RecordFor(entity).Logic.has_value(); }
+        [[nodiscard]] LogicComponent& Logic(Entity entity)
+        {
+            return RequireComponent(RecordFor(entity).Logic, "logic");
+        }
+        [[nodiscard]] const LogicComponent& Logic(Entity entity) const
+        {
+            return RequireComponent(RecordFor(entity).Logic, "logic");
+        }
+        bool RemoveLogic(Entity entity)
+        {
+            auto& component = RecordFor(entity).Logic;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+
         /// Stores renderer-independent authored physics after validating it;
         /// runtime world handles are created by a play-mode adapter.
         void SetRigidBody(Entity entity, RigidBodyComponent component)
@@ -283,6 +309,7 @@ export namespace kairo::engine
             std::vector<Entity> Children;
             std::optional<MeshRendererComponent> MeshRenderer;
             std::optional<CameraComponent> Camera;
+            std::optional<LogicComponent> Logic;
             std::optional<RigidBodyComponent> RigidBody;
             std::optional<ColliderComponent> Collider;
         };

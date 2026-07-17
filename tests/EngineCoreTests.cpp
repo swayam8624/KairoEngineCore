@@ -16,6 +16,7 @@ namespace
 {
     const auto MeshAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000101");
     const auto MaterialAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000102");
+    const auto LogicAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000103");
 }
 
 TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
@@ -169,6 +170,8 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
         "meshes/cube.obj", "kairo.obj", 1u, {} });
     assets.Insert({ MaterialAsset, kairo::assets::AssetType::Material, kairo::assets::AssetOrigin::Generated,
         "materials/default.kmat", "kairo.material", 1u, {} });
+    assets.Insert({ LogicAsset, kairo::assets::AssetType::Document, kairo::assets::AssetOrigin::SourceFile,
+        "logic/player.kdoc", "kairo.document-v1", 1u, {} });
 
     Scene original;
     const Entity cube = original.CreateEntityWithID({ 9u }, "Cube \"Hero\"");
@@ -177,6 +180,7 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     original.SetMeshRenderer(cube, { { MeshAsset }, { MaterialAsset }, false });
     const Entity camera = original.CreateEntityWithID({ 42u }, "Main Camera");
     original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
+    original.SetLogic(cube, { { LogicAsset }, true });
     original.SetRigidBody(cube, { RigidBodyMotion::Kinematic, 2.5f, 0.25f, 0.1f, 0.2f });
     original.SetCollider(cube, {
         .Shape = ColliderShape::Capsule,
@@ -202,6 +206,8 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     CHECK(restored.MeshRenderer(cube).MeshAsset.ID == MeshAsset);
     CHECK_FALSE(restored.MeshRenderer(cube).Visible);
     CHECK(restored.Camera(camera).Primary);
+    CHECK(restored.Logic(cube).Document.ID == LogicAsset);
+    CHECK(restored.Logic(cube).Enabled);
     CHECK(restored.RigidBody(cube).Motion == RigidBodyMotion::Kinematic);
     CHECK(restored.RigidBody(cube).Density == 2.5f);
     CHECK(restored.Collider(cube).Shape == ColliderShape::Capsule);
@@ -236,6 +242,9 @@ TEST_CASE("Scene parser reports source locations and validates registry referenc
         "kairo-scene 1\nentity 1 \"Cube\"\nmesh-renderer " + MeshAsset.ToString() + " " +
         MaterialAsset.ToString() + " true\nend\n";
     REQUIRE_THROWS_AS(ParseScene(missingAsset, assets), SceneFormatError);
+    const std::string missingLogic =
+        "kairo-scene 2\nentity 1 \"Actor\"\nlogic " + LogicAsset.ToString() + " true\nend\n";
+    REQUIRE_THROWS_AS(ParseScene(missingLogic, assets), SceneFormatError);
 }
 
 TEST_CASE("Scene files replace destinations atomically after complete validation", "[KairoEngineCore][Scene][Serialization]")
@@ -497,7 +506,7 @@ TEST_CASE("EngineCore registers inspector-ready reflection metadata", "[KairoEng
 {
     kairo::reflection::ReflectionRegistry registry;
     RegisterEngineCoreReflection(registry);
-    REQUIRE(registry.Size() == 5u);
+    REQUIRE(registry.Size() == 6u);
 
     CameraComponent camera;
     registry.Write("Kairo.Engine.CameraComponent", "vertical-fov-radians", &camera,
@@ -522,13 +531,16 @@ TEST_CASE("EngineCore resolves scene components for reflection without retaining
     Scene scene;
     const Entity entity = scene.CreateEntity("Inspector Camera");
     scene.SetCamera(entity, CameraComponent{ .Primary = true });
+    scene.SetLogic(entity, { { LogicAsset }, true });
 
     const auto components = EnumerateReflectedComponents(scene, entity);
-    REQUIRE(components.size() == 2u);
+    REQUIRE(components.size() == 3u);
     CHECK(components[0].TypeKey == "Kairo.Engine.NameComponent");
     CHECK(components[1].TypeKey == "Kairo.Engine.CameraComponent");
+    CHECK(components[2].TypeKey == "Kairo.Engine.LogicComponent");
     CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.NameComponent") == &scene.Name(entity));
     CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.CameraComponent") == &scene.Camera(entity));
+    CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.LogicComponent") == &scene.Logic(entity));
     REQUIRE_THROWS_AS(ResolveReflectedComponent(scene, entity, "Kairo.Engine.MeshRendererComponent"), std::logic_error);
 
     ValidateReflectedComponent("Kairo.Engine.CameraComponent", &scene.Camera(entity));

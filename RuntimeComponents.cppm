@@ -90,6 +90,23 @@ export namespace kairo::engine
         }
     };
 
+    /// Persistent gameplay-logic attachment. The document asset is authored
+    /// once and may later compile to platform-specific bytecode; scenes retain
+    /// the source identity so editor, build pipeline, and runtime diagnostics
+    /// can agree on ownership. Runtime VM instances are process-local and are
+    /// deliberately not serialized here.
+    struct LogicComponent final
+    {
+        kairo::assets::DocumentAssetHandle Document;
+        bool Enabled = true;
+
+        void Validate() const
+        {
+            if (!Document.IsValid())
+                throw std::invalid_argument("LogicComponent requires a valid document asset handle.");
+        }
+    };
+
     enum class RigidBodyMotion : std::uint8_t { Static, Dynamic, Kinematic };
     enum class ColliderShape : std::uint8_t { Box, Sphere, Capsule };
 

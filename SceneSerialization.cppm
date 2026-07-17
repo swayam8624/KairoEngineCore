@@ -239,6 +239,7 @@ export namespace kairo::engine
         bool transformSeen = false;
         bool meshSeen = false;
         bool cameraSeen = false;
+        bool logicSeen = false;
         bool rigidBodySeen = false;
         bool colliderSeen = false;
         bool parentSeen = false;
@@ -279,6 +280,7 @@ export namespace kairo::engine
                 transformSeen = false;
                 meshSeen = false;
                 cameraSeen = false;
+                logicSeen = false;
                 rigidBodySeen = false;
                 colliderSeen = false;
                 parentSeen = false;
@@ -388,6 +390,21 @@ export namespace kairo::engine
                 try { scene.SetCamera(*current, camera); }
                 catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
                 cameraSeen = true;
+            }
+            else if (tokens[0].Text == "logic")
+            {
+                if (version < 2u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "logic requires kairo-scene 2");
+                if (logicSeen) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "duplicate logic component");
+                RequireCount(tokens, 3u, lineNumber, "logic");
+                const kairo::assets::DocumentAssetHandle document{
+                    ParseAssetID(tokens[1], lineNumber) };
+                try { (void)assets.Resolve(document); }
+                catch (const std::exception& error)
+                { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
+                scene.SetLogic(*current, { document, ParseBool(tokens[2], lineNumber) });
+                logicSeen = true;
             }
             else if (tokens[0].Text == "rigid-body")
             {
@@ -537,6 +554,14 @@ export namespace kairo::engine
                 camera.Validate();
                 output << "camera " << camera.VerticalFovRadians << ' ' << camera.NearPlane << ' '
                     << camera.FarPlane << ' ' << (camera.Primary ? "true" : "false") << '\n';
+            }
+            if (scene.HasLogic(entity))
+            {
+                const auto& logic = scene.Logic(entity);
+                logic.Validate();
+                (void)assets.Resolve(logic.Document);
+                output << "logic " << logic.Document.ID.ToString() << ' '
+                    << (logic.Enabled ? "true" : "false") << '\n';
             }
             if (scene.HasRigidBody(entity))
             {

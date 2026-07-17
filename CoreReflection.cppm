@@ -37,12 +37,14 @@ export namespace kairo::engine
         Scene& scene, Entity entity)
     {
         std::vector<ReflectedSceneComponent> result;
-        result.reserve(5u);
+        result.reserve(6u);
         result.push_back({ "Kairo.Engine.NameComponent", &scene.Name(entity) });
         if (scene.HasCamera(entity))
             result.push_back({ "Kairo.Engine.CameraComponent", &scene.Camera(entity) });
         if (scene.HasMeshRenderer(entity))
             result.push_back({ "Kairo.Engine.MeshRendererComponent", &scene.MeshRenderer(entity) });
+        if (scene.HasLogic(entity))
+            result.push_back({ "Kairo.Engine.LogicComponent", &scene.Logic(entity) });
         if (scene.HasRigidBody(entity))
             result.push_back({ "Kairo.Engine.RigidBodyComponent", &scene.RigidBody(entity) });
         if (scene.HasCollider(entity))
@@ -71,6 +73,8 @@ export namespace kairo::engine
         if (object == nullptr) throw std::invalid_argument("Reflected component validation requires a non-null object.");
         if (typeKey == "Kairo.Engine.CameraComponent")
             static_cast<const CameraComponent*>(object)->Validate();
+        else if (typeKey == "Kairo.Engine.LogicComponent")
+            static_cast<const LogicComponent*>(object)->Validate();
     }
 
     /// Input: an empty or independently managed reflection registry.
@@ -116,6 +120,17 @@ export namespace kairo::engine
             .Properties = {
                 MakeMemberProperty<MeshRendererComponent>({ "visible", "Visible", "General", "Controls render extraction visibility",
                     PropertyFlags::None, std::nullopt, 0u }, &MeshRendererComponent::Visible)
+            }
+        });
+
+        registry.Register({
+            .Key = "Kairo.Engine.LogicComponent",
+            .DisplayName = "Logic",
+            .Category = "Gameplay",
+            .Properties = {
+                MakeMemberProperty<LogicComponent>({ "enabled", "Enabled", "General",
+                    "Allows the attached gameplay document to execute in play mode",
+                    PropertyFlags::None, std::nullopt, 0u }, &LogicComponent::Enabled)
             }
         });
 
