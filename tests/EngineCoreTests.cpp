@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <atomic>
+#include <cmath>
 #include <filesystem>
 #include <limits>
 #include <memory>
@@ -264,6 +265,20 @@ namespace
         int& m_Updates;
         bool m_Handles;
     };
+
+    class InputObservingLayer final : public Layer
+    {
+    public:
+        InputObservingLayer(const InputState& input, bool& sawPress)
+            : Layer("Input observer"), m_Input(input), m_SawPress(sawPress) {}
+        void OnUpdate(float) override
+        {
+            m_SawPress = m_Input.IsKeyPressed(static_cast<std::int32_t>(KeyCode::Space));
+        }
+    private:
+        const InputState& m_Input;
+        bool& m_SawPress;
+    };
 }
 
 TEST_CASE("Application updates layers and propagates events in reverse order", "[KairoEngineCore][Application]")
@@ -291,6 +306,8 @@ TEST_CASE("Engine events retain typed payload and handled state", "[KairoEngineC
 TEST_CASE("Application owns platform-neutral held and frame-scoped input", "[KairoEngineCore][Input]")
 {
     Application app;
+    bool layerSawPress = false;
+    app.PushLayer(std::make_unique<InputObservingLayer>(app.Input(), layerSawPress));
     Event press{ EventType::KeyPressed, false, static_cast<std::int32_t>(KeyCode::Space) };
     app.Dispatch(press);
     CHECK(app.Input().IsKeyDown(KeyCode::Space));
@@ -301,11 +318,83 @@ TEST_CASE("Application owns platform-neutral held and frame-scoped input", "[Kai
     CHECK(app.Input().MousePosition().X == 40.0f);
     CHECK(app.Input().ScrollDelta().Y == 3.0f);
     app.RunFrame();
+    CHECK(layerSawPress);
     CHECK(app.Input().MouseDelta().X == 0.0f);
     CHECK(app.Input().ScrollDelta().Y == 0.0f);
     Event release{ EventType::KeyReleased, false, static_cast<std::int32_t>(KeyCode::Space) };
     app.Dispatch(release);
     CHECK_FALSE(app.Input().IsKeyDown(KeyCode::Space));
+}
+
+TEST_CASE("Versioned input maps evaluate keyboard mouse and gamepad actions",
+    "[KairoEngineCore][Input][ActionMap]")
+{
+    const std::string source =
+        "kairo-input 1\n"
+        "action \"Move\" axis2d\n"
+        "action \"Jump\" button\n"
+        "action \"Look\" axis2d\n"
+        "bind \"Move\" key W 0 1 0\n"
+        "bind \"Move\" key S 0 -1 0\n"
+        "bind \"Move\" key A -1 0 0\n"
+        "bind \"Move\" key D 1 0 0\n"
+        "bind \"Jump\" key Space 1 0 0\n"
+        "bind \"Jump\" gamepad-button A 1 0 0\n"
+        "bind \"Look\" gamepad-axis RightX 1 0 0.2\n"
+        "bind \"Look\" gamepad-axis RightY 0 -1 0.2\n";
+    const InputActionMap map = ParseInputActionMap(source);
+    CHECK(ParseInputActionMap(SerializeInputActionMap(map)) == map);
+    const auto inputPath = std::filesystem::temp_directory_path() /
+        ("kairo-input-" + kairo::assets::GenerateAssetID().ToString() + ".kinput");
+    SaveInputActionMap(inputPath, map);
+    CHECK(LoadInputActionMap(inputPath) == map);
+    std::filesystem::remove(inputPath);
+
+    InputState input;
+    input.BeginFrame();
+    input.SetKeyDown(KeyCode::W, true);
+    const auto started = map.Evaluate("Move", input);
+    CHECK(started.Down);
+    CHECK(started.Pressed);
+    CHECK_FALSE(started.Released);
+    CHECK(started.Value.Y == 1.0f);
+
+    input.BeginFrame();
+    const auto held = map.Evaluate("Move", input);
+    CHECK(held.Down);
+    CHECK_FALSE(held.Pressed);
+    input.SetKeyDown(KeyCode::W, false);
+    const auto released = map.Evaluate("Move", input);
+    CHECK_FALSE(released.Down);
+    CHECK(released.Released);
+
+    input.BeginFrame();
+    input.SetGamepadAxis(0u, GamepadAxis::RightX, 0.6f);
+    input.SetGamepadAxis(0u, GamepadAxis::RightY, -0.6f);
+    const auto look = map.Evaluate("Look", input);
+    CHECK(std::abs(look.Value.X - 0.5f) < 1.0e-5f);
+    CHECK(std::abs(look.Value.Y - 0.5f) < 1.0e-5f);
+    input.SetGamepadButtonDown(0u, GamepadButton::A, true);
+    CHECK(map.Evaluate("Jump", input).Pressed);
+
+    input.BeginFrame();
+    input.SetMouseButtonDown(MouseButton::Left, true);
+    CHECK(input.IsMouseButtonPressed(MouseButton::Left));
+    CHECK_THROWS(input.SetGamepadAxis(InputState::MaximumGamepads, 0u, 0.0f));
+
+    try
+    {
+        (void)ParseInputActionMap(
+            "kairo-input 1\naction \"Jump\" button\nbind \"Jump\" key NotAKey 1 0 0\n");
+        FAIL("Unknown key was accepted.");
+    }
+    catch (const InputMapFormatError& error)
+    {
+        CHECK(error.Line == 3u);
+        CHECK(error.Column == 17u);
+    }
+    CHECK_THROWS_AS(ParseInputActionMap(
+        "kairo-input 1\naction \"Unused\" button\n"), InputMapFormatError);
 }
 
 TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngineCore][Components]")

@@ -29,9 +29,9 @@ export namespace kairo::engine
         }
         void RunFrame()
         {
-            m_Input.BeginFrame();
             m_Clock.Tick();
             for (const auto& layer : m_Layers) layer->OnUpdate(m_Clock.DeltaSeconds());
+            m_Input.CommitFrame();
         }
         void Dispatch(Event& event)
         {

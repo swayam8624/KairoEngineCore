@@ -81,6 +81,35 @@ The editor console, file sinks, and telemetry integrations consume the same
 ordered `Snapshot()` records. Core diagnostics deliberately has no GLFW,
 Vulkan, filesystem, or external logging dependency.
 
+## Gameplay input
+
+`Kairo.EngineCore.Input` owns frame-scoped raw keyboard, mouse, and four-slot
+standardized gamepad state. Platform adapters update it without leaking GLFW,
+Win32, Cocoa, or another window API into gameplay. Held, pressed, and released
+queries use explicit previous-frame snapshots; analog gamepad axes are finite
+and clamped to `[-1, 1]`.
+
+`Kairo.EngineCore.InputMap` turns raw state into named button, 1D-axis, and
+2D-axis actions. `.kinput` V1 is bounded, deterministic, atomically saved, and
+reports exact one-based line/column errors. Axis bindings combine and clamp;
+gamepad deadzones are removed and the remaining range is rescaled.
+
+```text
+kairo-input 1
+action "Move" axis2d
+action "Jump" button
+bind "Move" key W 0 1 0
+bind "Move" key A -1 0 0
+bind "Move" gamepad-axis LeftX 1 0 0.15
+bind "Move" gamepad-axis LeftY 0 -1 0.15
+bind "Jump" key Space 1 0 0
+bind "Jump" gamepad-button A 1 0 0
+```
+
+Each `bind` statement contains action, device, named control, X/Y contribution,
+and deadzone. Supported devices are `key`, `mouse-button`, `gamepad-button`, and
+`gamepad-axis`; only analog-axis bindings may use a non-zero deadzone.
+
 Scene enumeration returns stable entity IDs in ascending creation order so
 hierarchies, serializers, and systems do not depend on unordered storage order.
 Scenes own optional mesh renderer, camera, rigid-body, and collider components.
