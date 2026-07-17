@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <limits>
 #include <memory>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -89,6 +90,35 @@ TEST_CASE("Logic bytecode round trips and executes through bounded host calls",
     REQUIRE_THROWS_AS(runaway.Dispatch({ 1u }, { .Event = LogicEventKind::Tick,
         .Action = {}, .DeltaSeconds = 1.0 / 60.0, .ActionValue = 0.0,
         .OtherEntity = {} }, host, 32u), std::runtime_error);
+}
+
+TEST_CASE("Compiled logic artifacts bind bytecode to exact source identity",
+    "[KairoEngineCore][Logic][Artifact]")
+{
+    const auto source = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000177");
+    const std::string sourceText = "kairo-document 1\n";
+    const auto sourceBytes = std::as_bytes(std::span(sourceText.data(), sourceText.size()));
+    LogicProgram program;
+    program.Strings = { "artifact" };
+    program.Instructions = { { LogicOpcode::Print, 0u }, { LogicOpcode::Halt } };
+    program.Entries = { { LogicEventKind::BeginPlay, {}, 0u } };
+    CompiledLogicArtifact artifact{ source, kairo::assets::FingerprintBytes(sourceBytes), program };
+    const auto bytes = SerializeCompiledLogicArtifact(artifact);
+    const auto restored = ParseCompiledLogicArtifact(bytes);
+    CHECK(restored.Source == source);
+    CHECK(restored.SourceFingerprint == artifact.SourceFingerprint);
+    CHECK(restored.Program.Instructions == program.Instructions);
+
+    auto truncated = bytes;
+    truncated.pop_back();
+    REQUIRE_THROWS_AS(ParseCompiledLogicArtifact(truncated), std::invalid_argument);
+
+    const auto root = std::filesystem::temp_directory_path() / "kairo-core-logic-artifact-test";
+    std::filesystem::remove_all(root);
+    const auto path = CompiledLogicPath(root, source);
+    SaveCompiledLogicArtifact(path, artifact);
+    CHECK(LoadCompiledLogicArtifact(path).Source == source);
+    std::filesystem::remove_all(root);
 }
 
 TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
