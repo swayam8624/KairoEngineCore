@@ -17,6 +17,78 @@ namespace
     const auto MeshAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000101");
     const auto MaterialAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000102");
     const auto LogicAsset = kairo::assets::AssetID::Parse("00000000-0000-4000-8000-000000000103");
+
+    class RecordingLogicHost final : public LogicHost
+    {
+    public:
+        std::vector<std::string> Messages;
+        Entity Positioned;
+        Entity Impulsed;
+        kairo::foundation::math::Vec3d Position;
+        kairo::foundation::math::Vec3d Impulse;
+        void Print(Entity, std::string_view message) override { Messages.emplace_back(message); }
+        void SetEntityPosition(Entity entity, const kairo::foundation::math::Vec3d& value) override
+        { Positioned = entity; Position = value; }
+        void ApplyEntityImpulse(Entity entity, const kairo::foundation::math::Vec3d& value) override
+        { Impulsed = entity; Impulse = value; }
+    };
+}
+
+TEST_CASE("Logic bytecode round trips and executes through bounded host calls",
+    "[KairoEngineCore][Logic]")
+{
+    LogicProgram program;
+    program.RegisterCount = 7u;
+    program.Strings = { "Begin Play" };
+    program.Floats = { 2.0, 3.5 };
+    program.Vectors = { { 1.0, 2.0, 3.0 }, { 4.0, 0.0, 0.0 } };
+    program.Entities = { Entity{ 9u } };
+    program.Instructions = {
+        { LogicOpcode::Print, 0u },
+        { LogicOpcode::LoadEntity, 3u, 0u },
+        { LogicOpcode::LoadVector3, 4u, 0u },
+        { LogicOpcode::SetEntityPosition, 3u, 4u },
+        { LogicOpcode::LoadFloat, 5u, 0u },
+        { LogicOpcode::LoadFloat, 6u, 1u },
+        { LogicOpcode::AddFloat, 5u, 5u, 6u },
+        { LogicOpcode::LoadVector3, 4u, 1u },
+        { LogicOpcode::ApplyEntityImpulse, 3u, 4u },
+        { LogicOpcode::Halt }
+    };
+    program.Entries = { { LogicEventKind::BeginPlay, {}, 0u } };
+    const auto encoded = SerializeLogicProgram(program);
+    const auto restored = ParseLogicProgram(encoded);
+    CHECK(restored.Instructions == program.Instructions);
+    CHECK(restored.Entries == program.Entries);
+
+    RecordingLogicHost host;
+    LogicInstance instance(restored);
+    CHECK(instance.Dispatch({ 1u }, { .Event = LogicEventKind::BeginPlay,
+        .Action = {}, .DeltaSeconds = 0.0, .ActionValue = 0.0, .OtherEntity = {} }, host) == 10u);
+    CHECK(host.Messages == std::vector<std::string>{ "Begin Play" });
+    CHECK(host.Positioned == Entity{ 9u });
+    CHECK(host.Position == kairo::foundation::math::Vec3d{ 1.0, 2.0, 3.0 });
+    CHECK(host.Impulsed == Entity{ 9u });
+
+    auto trailing = encoded;
+    trailing.push_back(std::byte{ 0 });
+    REQUIRE_THROWS_AS(ParseLogicProgram(trailing), std::invalid_argument);
+    auto impossiblePools = encoded;
+    impossiblePools[12] = std::byte{ 0xff };
+    impossiblePools[13] = std::byte{ 0xff };
+    REQUIRE_THROWS_AS(ParseLogicProgram(impossiblePools), std::invalid_argument);
+
+    auto unknownEvent = program;
+    unknownEvent.Entries[0].Event = static_cast<LogicEventKind>(255u);
+    REQUIRE_THROWS_AS(unknownEvent.Validate(), std::invalid_argument);
+
+    LogicProgram loop;
+    loop.Instructions = { { LogicOpcode::Jump, 0u } };
+    loop.Entries = { { LogicEventKind::Tick, {}, 0u } };
+    LogicInstance runaway(loop);
+    REQUIRE_THROWS_AS(runaway.Dispatch({ 1u }, { .Event = LogicEventKind::Tick,
+        .Action = {}, .DeltaSeconds = 1.0 / 60.0, .ActionValue = 0.0,
+        .OtherEntity = {} }, host, 32u), std::runtime_error);
 }
 
 TEST_CASE("Scene owns stable entity records", "[KairoEngineCore][Scene]")
