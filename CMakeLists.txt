@@ -66,14 +66,14 @@ endif()
 
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
-    TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm RuntimeSceneCommands.cppm SceneSerialization.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm LogicBytecode.cppm LogicArtifact.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
+    TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoAssets KairoReflection)
 
 if(KAIRO_ENGINE_CORE_BUILD_TESTS)
     include(FetchContent)
     FetchContent_Declare(Catch2 GIT_REPOSITORY https://github.com/catchorg/Catch2.git GIT_TAG v3.5.4)
     FetchContent_MakeAvailable(Catch2)
-    add_executable(KairoEngineCoreTests tests/EngineCoreTests.cpp tests/RuntimeSceneCommandsTests.cpp)
+    add_executable(KairoEngineCoreTests tests/EngineCoreTests.cpp tests/LogicStateTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
     add_executable(KairoEngineCorePhase3Tests tests/Phase3RuntimeTests.cpp)
     target_link_libraries(KairoEngineCorePhase3Tests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
