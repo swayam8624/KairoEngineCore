@@ -66,7 +66,11 @@ endif()
 
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
-    TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm LogicBytecode.cppm LogicArtifact.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
+    TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm
+    RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm RuntimeWorld.cppm
+    CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm LogicBytecode.cppm
+    LogicArtifact.cppm GameplayVM.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm
+    JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoAssets KairoReflection)
 
 if(KAIRO_ENGINE_CORE_BUILD_TESTS)
@@ -75,6 +79,9 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
     FetchContent_MakeAvailable(Catch2)
     add_executable(KairoEngineCoreTests tests/EngineCoreTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
+    add_executable(KairoEngineCorePhase3Tests tests/Phase3RuntimeTests.cpp)
+    target_link_libraries(KairoEngineCorePhase3Tests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
     enable_testing()
     add_test(NAME KairoEngineCoreTests COMMAND KairoEngineCoreTests)
+    add_test(NAME KairoEngineCorePhase3Tests COMMAND KairoEngineCorePhase3Tests)
 endif()
