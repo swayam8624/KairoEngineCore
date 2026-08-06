@@ -1,0 +1,80 @@
+name: Apply Deterministic Bytecode Reader Patch V2
+
+on:
+  push:
+    branches:
+      - agent/phase0-deterministic-bytecode-read
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: agent/phase0-deterministic-bytecode-read
+          fetch-depth: 0
+      - name: Make reader side effects explicitly sequenced
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('LogicBytecode.cppm')
+          source = path.read_text()
+          old = '''        for (std::uint32_t i = 0; i < vectors; ++i) result.Vectors.push_back({
+              std::bit_cast<double>(input.U64()), std::bit_cast<double>(input.U64()),
+              std::bit_cast<double>(input.U64()) });
+          for (std::uint32_t i = 0; i < entities; ++i) result.Entities.push_back({ input.U32() });
+          for (std::uint32_t i = 0; i < instructions; ++i) result.Instructions.push_back({
+              static_cast<LogicOpcode>(input.U8()), input.U32(), input.U32(), input.U32(), input.U32() });
+          for (std::uint32_t i = 0; i < entries; ++i) result.Entries.push_back({
+              static_cast<LogicEventKind>(input.U8()), input.String(), input.U32() });
+          '''
+          new = '''        for (std::uint32_t i = 0; i < vectors; ++i)
+          {
+              const double x = std::bit_cast<double>(input.U64());
+              const double y = std::bit_cast<double>(input.U64());
+              const double z = std::bit_cast<double>(input.U64());
+              result.Vectors.emplace_back(x, y, z);
+          }
+          for (std::uint32_t i = 0; i < entities; ++i)
+          {
+              const std::uint32_t value = input.U32();
+              result.Entities.push_back({ value });
+          }
+          for (std::uint32_t i = 0; i < instructions; ++i)
+          {
+              const LogicOpcode opcode = static_cast<LogicOpcode>(input.U8());
+              const std::uint32_t a = input.U32();
+              const std::uint32_t b = input.U32();
+              const std::uint32_t c = input.U32();
+              const std::uint32_t d = input.U32();
+              result.Instructions.push_back({ opcode, a, b, c, d });
+          }
+          for (std::uint32_t i = 0; i < entries; ++i)
+          {
+              const LogicEventKind event = static_cast<LogicEventKind>(input.U8());
+              std::string action = input.String();
+              const std::uint32_t offset = input.U32();
+              result.Entries.push_back({ event, std::move(action), offset });
+          }
+          '''
+          if old not in source:
+              raise SystemExit('expected bytecode parse block was not found')
+          path.write_text(source.replace(old, new))
+          for workflow in (
+              Path('.github/workflows/phase0-deterministic-bytecode-read.yml'),
+              Path('.github/workflows/phase0-deterministic-bytecode-read-v2.yml')):
+              workflow.unlink(missing_ok=True)
+          PY
+      - name: Commit deterministic reader order
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add LogicBytecode.cppm .github/workflows
+          git commit -m "Make bytecode reader order explicit"
+          git push origin HEAD:agent/phase0-deterministic-bytecode-read
