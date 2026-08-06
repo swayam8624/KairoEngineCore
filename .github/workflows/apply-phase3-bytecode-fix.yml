@@ -21,17 +21,17 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
+
           path = Path('LogicBytecode.cppm')
           text = path.read_text()
-          old = '''        for (std::uint32_t i = 0; i < vectors; ++i) result.Vectors.push_back({
-              std::bit_cast<double>(input.U64()), std::bit_cast<double>(input.U64()),
-              std::bit_cast<double>(input.U64()) });
-          for (std::uint32_t i = 0; i < entities; ++i) result.Entities.push_back({ input.U32() });
-          for (std::uint32_t i = 0; i < instructions; ++i) result.Instructions.push_back({
-              static_cast<LogicOpcode>(input.U8()), input.U32(), input.U32(), input.U32(), input.U32() });
-          for (std::uint32_t i = 0; i < entries; ++i) result.Entries.push_back({
-              static_cast<LogicEventKind>(input.U8()), input.String(), input.U32() });'''
-          new = '''        for (std::uint32_t i = 0; i < vectors; ++i)
+          pattern = re.compile(
+              r'        for \(std::uint32_t i = 0; i < vectors; \+\+i\) result\.Vectors\.push_back\(\{\n'
+              r'.*?'
+              r'        for \(std::uint32_t i = 0; i < entries; \+\+i\) result\.Entries\.push_back\(\{\n'
+              r'.*?input\.U32\(\) \}\);',
+              re.DOTALL)
+          replacement = '''        for (std::uint32_t i = 0; i < vectors; ++i)
           {
               const double x = std::bit_cast<double>(input.U64());
               const double y = std::bit_cast<double>(input.U64());
@@ -61,9 +61,10 @@ jobs:
               entry.InstructionOffset = input.U32();
               result.Entries.push_back(std::move(entry));
           }'''
-          if old not in text:
-              raise SystemExit('expected bytecode parser block was not found')
-          path.write_text(text.replace(old, new))
+          updated, count = pattern.subn(replacement, text, count=1)
+          if count != 1:
+              raise SystemExit(f'expected one bytecode parser block, found {count}')
+          path.write_text(updated)
           Path('.github/workflows/apply-phase3-bytecode-fix.yml').unlink()
           PY
           git config user.name 'github-actions[bot]'
