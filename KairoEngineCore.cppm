@@ -13,6 +13,7 @@ export import Kairo.EngineCore.Time;
 export import Kairo.EngineCore.Event;
 export import Kairo.EngineCore.Input;
 export import Kairo.EngineCore.InputMap;
+export import Kairo.EngineCore.LogicState;
 export import Kairo.EngineCore.LogicBytecode;
 export import Kairo.EngineCore.LogicArtifact;
 export import Kairo.EngineCore.Layer;
