@@ -1,0 +1,32 @@
+name: Apply Phase 3 Integration
+
+on:
+  push:
+    branches:
+      - agent/phase1-3-integration
+
+permissions:
+  contents: write
+
+jobs:
+  integrate:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Cherry-pick runtime scene API
+        shell: bash
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git cherry-pick 75b8171f9168c0bee6120c515584e074295eb358 \
+            34d66a85083bc9e6e2da11cbde8dbcc5b90d0e23 \
+            3d03ca7cf68eaa9b06ae0b20b7395e968c88d988 \
+            31a05571acf50c6fe87577668c89cdea6781b712 \
+            925ebaaf8cb8f891b52ed1b7e8ce7baca16b6536
+          rm .github/workflows/apply-phase3-integration.yml
+          git add -A
+          git commit -m "Remove one-shot integration workflow"
+          git push
