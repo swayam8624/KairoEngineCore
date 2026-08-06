@@ -8,6 +8,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <variant>
@@ -101,11 +102,9 @@ export namespace kairo::engine
                 throw std::invalid_argument("Logic timer repeat interval must be finite and non-negative.");
             if (!m_Timers.contains(name) && m_Timers.size() >= MaximumTimers)
                 throw std::length_error("Logic state exceeds its timer safety limit.");
-            m_Timers.insert_or_assign(std::move(name), LogicTimer{ {}, durationSeconds, repeat });
-            auto& timer = m_Timers.begin()->second;
-            (void)timer;
-            // insert_or_assign moves the key, so restore the canonical name from
-            // the map during snapshot/tick instead of duplicating it internally.
+            const std::string canonicalName = name;
+            m_Timers.insert_or_assign(std::move(name),
+                LogicTimer{ canonicalName, durationSeconds, repeat });
         }
 
         bool CancelTimer(std::string_view name)
