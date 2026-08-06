@@ -409,14 +409,36 @@ export namespace kairo::engine
         result.Entities.reserve(entities); result.Instructions.reserve(instructions); result.Entries.reserve(entries);
         for (std::uint32_t i = 0; i < strings; ++i) result.Strings.push_back(input.String());
         for (std::uint32_t i = 0; i < floats; ++i) result.Floats.push_back(std::bit_cast<double>(input.U64()));
-        for (std::uint32_t i = 0; i < vectors; ++i) result.Vectors.push_back({
-            std::bit_cast<double>(input.U64()), std::bit_cast<double>(input.U64()),
-            std::bit_cast<double>(input.U64()) });
-        for (std::uint32_t i = 0; i < entities; ++i) result.Entities.push_back({ input.U32() });
-        for (std::uint32_t i = 0; i < instructions; ++i) result.Instructions.push_back({
-            static_cast<LogicOpcode>(input.U8()), input.U32(), input.U32(), input.U32(), input.U32() });
-        for (std::uint32_t i = 0; i < entries; ++i) result.Entries.push_back({
-            static_cast<LogicEventKind>(input.U8()), input.String(), input.U32() });
+for (std::uint32_t i = 0; i < vectors; ++i)
+{
+    const double x = std::bit_cast<double>(input.U64());
+    const double y = std::bit_cast<double>(input.U64());
+    const double z = std::bit_cast<double>(input.U64());
+    result.Vectors.emplace_back(x, y, z);
+}
+for (std::uint32_t i = 0; i < entities; ++i)
+{
+    const std::uint32_t value = input.U32();
+    result.Entities.push_back(Entity{ value });
+}
+for (std::uint32_t i = 0; i < instructions; ++i)
+{
+    LogicInstruction instruction;
+    instruction.Opcode = static_cast<LogicOpcode>(input.U8());
+    instruction.A = input.U32();
+    instruction.B = input.U32();
+    instruction.C = input.U32();
+    instruction.D = input.U32();
+    result.Instructions.push_back(instruction);
+}
+for (std::uint32_t i = 0; i < entries; ++i)
+{
+    LogicEntryPoint entry;
+    entry.Event = static_cast<LogicEventKind>(input.U8());
+    entry.Action = input.String();
+    entry.InstructionOffset = input.U32();
+    result.Entries.push_back(std::move(entry));
+}
         if (!input.Finished()) throw std::invalid_argument("Logic artifact contains trailing bytes.");
         result.Validate();
         return result;
