@@ -1,7 +1,7 @@
 module;
 
-#include <array>
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <cmath>
 #include <cstddef>
@@ -35,9 +35,6 @@ export namespace kairo::engine
         LoadEntity, AddFloat, SetEntityPosition, ApplyEntityImpulse
     };
 
-    /// Fixed-width instruction operands are interpreted by Opcode. Keeping the
-    /// in-memory representation explicit avoids compiler-dependent packed
-    /// structs in serialized artifacts.
     struct LogicInstruction final
     {
         LogicOpcode Opcode = LogicOpcode::Halt;
@@ -45,7 +42,8 @@ export namespace kairo::engine
         std::uint32_t B = 0u;
         std::uint32_t C = 0u;
         std::uint32_t D = 0u;
-        friend constexpr bool operator==(const LogicInstruction&, const LogicInstruction&) noexcept = default;
+        friend constexpr bool operator==(const LogicInstruction&,
+            const LogicInstruction&) noexcept = default;
     };
 
     struct LogicEntryPoint final
@@ -56,9 +54,6 @@ export namespace kairo::engine
         friend bool operator==(const LogicEntryPoint&, const LogicEntryPoint&) = default;
     };
 
-    /// Runtime-only program. Registers 0, 1, and 2 are populated by dispatch
-    /// with delta seconds, scalar action value, and other collision entity.
-    /// Compilers may allocate user registers starting at ReservedRegisterCount.
     struct LogicProgram final
     {
         static constexpr std::uint32_t ReservedRegisterCount = 3u;
@@ -86,16 +81,19 @@ export namespace kairo::engine
                 throw std::length_error("Logic program constant pool exceeds its safety limit.");
             if (Entries.empty() || Entries.size() > MaximumEntries)
                 throw std::invalid_argument("Logic program requires at least one bounded entry point.");
-            for (const auto& value : Strings)
-                ValidateUtf8Text(value, { 0u, 64u * 1024u, true, true }, "Logic string constant");
-            for (const auto& value : Floats)
-                if (!std::isfinite(value)) throw std::invalid_argument("Logic float constant must be finite.");
+            for (const std::string& value : Strings)
+                ValidateUtf8Text(value, { 0u, 64u * 1024u, true, true },
+                    "Logic string constant");
+            for (double value : Floats)
+                if (!std::isfinite(value))
+                    throw std::invalid_argument("Logic float constant must be finite.");
             for (const auto& value : Vectors)
-                if (!std::isfinite(value.x) || !std::isfinite(value.y) || !std::isfinite(value.z))
+                if (!std::isfinite(value.x) || !std::isfinite(value.y) ||
+                    !std::isfinite(value.z))
                     throw std::invalid_argument("Logic vector constant must be finite.");
-            for (const Entity entity : Entities)
+            for (Entity entity : Entities)
                 if (!entity) throw std::invalid_argument("Logic entity constants cannot be zero.");
-            for (const auto& entry : Entries)
+            for (const LogicEntryPoint& entry : Entries)
             {
                 switch (entry.Event)
                 {
@@ -111,45 +109,63 @@ export namespace kairo::engine
                     throw std::invalid_argument("Logic entry point targets an invalid instruction.");
                 const bool input = entry.Event == LogicEventKind::InputPressed ||
                     entry.Event == LogicEventKind::InputReleased;
-                if (input) ValidateUtf8Text(entry.Action, { 1u, 64u, false, false }, "Logic input action");
+                if (input)
+                    ValidateUtf8Text(entry.Action, { 1u, 64u, false, false },
+                        "Logic input action");
                 else if (!entry.Action.empty())
                     throw std::invalid_argument("Only input event entries may name an action.");
             }
-            for (const auto& instruction : Instructions) ValidateInstruction(instruction);
+            for (const LogicInstruction& instruction : Instructions)
+                ValidateInstruction(instruction);
         }
 
     private:
         void ValidateInstruction(const LogicInstruction& instruction) const
         {
-            const auto reg = [this](std::uint32_t value) {
-                if (value >= RegisterCount) throw std::invalid_argument("Logic instruction references an invalid register.");
+            const auto reg = [this](std::uint32_t value)
+            {
+                if (value >= RegisterCount)
+                    throw std::invalid_argument("Logic instruction references an invalid register.");
             };
-            const auto target = [this](std::uint32_t value) {
-                if (value >= Instructions.size()) throw std::invalid_argument("Logic instruction jumps outside the program.");
+            const auto target = [this](std::uint32_t value)
+            {
+                if (value >= Instructions.size())
+                    throw std::invalid_argument("Logic instruction jumps outside the program.");
             };
             switch (instruction.Opcode)
             {
                 case LogicOpcode::Halt: break;
                 case LogicOpcode::Print:
-                    if (instruction.A >= Strings.size()) throw std::invalid_argument("Logic print string is invalid.");
+                    if (instruction.A >= Strings.size())
+                        throw std::invalid_argument("Logic print string is invalid.");
                     break;
                 case LogicOpcode::Jump: target(instruction.A); break;
                 case LogicOpcode::JumpIfFalse: reg(instruction.A); target(instruction.B); break;
-                case LogicOpcode::LoadBoolean: reg(instruction.A);
-                    if (instruction.B > 1u) throw std::invalid_argument("Logic boolean constant must be zero or one.");
+                case LogicOpcode::LoadBoolean:
+                    reg(instruction.A);
+                    if (instruction.B > 1u)
+                        throw std::invalid_argument("Logic boolean constant must be zero or one.");
                     break;
-                case LogicOpcode::LoadFloat: reg(instruction.A);
-                    if (instruction.B >= Floats.size()) throw std::invalid_argument("Logic float constant is invalid.");
+                case LogicOpcode::LoadFloat:
+                    reg(instruction.A);
+                    if (instruction.B >= Floats.size())
+                        throw std::invalid_argument("Logic float constant is invalid.");
                     break;
-                case LogicOpcode::LoadVector3: reg(instruction.A);
-                    if (instruction.B >= Vectors.size()) throw std::invalid_argument("Logic vector constant is invalid.");
+                case LogicOpcode::LoadVector3:
+                    reg(instruction.A);
+                    if (instruction.B >= Vectors.size())
+                        throw std::invalid_argument("Logic vector constant is invalid.");
                     break;
-                case LogicOpcode::LoadEntity: reg(instruction.A);
-                    if (instruction.B >= Entities.size()) throw std::invalid_argument("Logic entity constant is invalid.");
+                case LogicOpcode::LoadEntity:
+                    reg(instruction.A);
+                    if (instruction.B >= Entities.size())
+                        throw std::invalid_argument("Logic entity constant is invalid.");
                     break;
-                case LogicOpcode::AddFloat: reg(instruction.A); reg(instruction.B); reg(instruction.C); break;
+                case LogicOpcode::AddFloat:
+                    reg(instruction.A); reg(instruction.B); reg(instruction.C); break;
                 case LogicOpcode::SetEntityPosition:
-                case LogicOpcode::ApplyEntityImpulse: reg(instruction.A); reg(instruction.B); break;
+                case LogicOpcode::ApplyEntityImpulse:
+                    reg(instruction.A); reg(instruction.B); break;
                 default: throw std::invalid_argument("Logic program contains an unknown opcode.");
             }
         }
@@ -164,8 +180,6 @@ export namespace kairo::engine
         Entity OtherEntity;
     };
 
-    /// Runtime host boundary shared by visual graphs and future C++ gameplay.
-    /// Implementations own scene/physics mutation and validate entity lifetime.
     class LogicHost
     {
     public:
@@ -188,10 +202,6 @@ export namespace kairo::engine
             m_Registers.resize(m_Program.RegisterCount);
         }
 
-        /// Executes every matching entry in deterministic declaration order.
-        /// Registers are reset per entry so one event cannot observe temporary
-        /// values from another. A shared dispatch budget bounds loops across all
-        /// matching entries and turns runaway graphs into an explicit failure.
         [[nodiscard]] std::size_t Dispatch(Entity owner, const LogicDispatch& dispatch,
             LogicHost& host, std::size_t instructionBudget = DefaultInstructionBudget)
         {
@@ -202,12 +212,12 @@ export namespace kairo::engine
             if (instructionBudget == 0u)
                 throw std::invalid_argument("Logic dispatch instruction budget must be positive.");
             std::size_t executed = 0u;
-            for (const auto& entry : m_Program.Entries)
+            for (const LogicEntryPoint& entry : m_Program.Entries)
             {
-                if (entry.Event != dispatch.Event ||
-                    ((entry.Event == LogicEventKind::InputPressed ||
-                      entry.Event == LogicEventKind::InputReleased) && entry.Action != dispatch.Action))
-                    continue;
+                if (entry.Event != dispatch.Event) continue;
+                const bool input = entry.Event == LogicEventKind::InputPressed ||
+                    entry.Event == LogicEventKind::InputReleased;
+                if (input && entry.Action != dispatch.Action) continue;
                 std::fill(m_Registers.begin(), m_Registers.end(), LogicValue{});
                 m_Registers[0] = dispatch.DeltaSeconds;
                 m_Registers[1] = dispatch.ActionValue;
@@ -223,11 +233,13 @@ export namespace kairo::engine
         LogicProgram m_Program;
         std::vector<LogicValue> m_Registers;
 
-        template<class T>
-        [[nodiscard]] const T& Register(std::uint32_t index, std::string_view role) const
+        template<class Value>
+        [[nodiscard]] const Value& Register(std::uint32_t index, const char* role) const
         {
-            const auto* value = std::get_if<T>(&m_Registers.at(index));
-            if (value == nullptr) throw std::runtime_error("Logic " + std::string(role) + " register has the wrong runtime type.");
+            const auto* value = std::get_if<Value>(&m_Registers.at(index));
+            if (value == nullptr)
+                throw std::runtime_error(std::string("Logic ") + role +
+                    " register has the wrong runtime type.");
             return *value;
         }
 
@@ -244,17 +256,23 @@ export namespace kairo::engine
                 switch (instruction.Opcode)
                 {
                     case LogicOpcode::Halt: return;
-                    case LogicOpcode::Print: host.Print(owner, m_Program.Strings.at(instruction.A)); break;
+                    case LogicOpcode::Print:
+                        host.Print(owner, m_Program.Strings.at(instruction.A)); break;
                     case LogicOpcode::Jump: pc = instruction.A; break;
                     case LogicOpcode::JumpIfFalse:
                         if (!Register<bool>(instruction.A, "branch")) pc = instruction.B;
                         break;
-                    case LogicOpcode::LoadBoolean: m_Registers[instruction.A] = instruction.B != 0u; break;
-                    case LogicOpcode::LoadFloat: m_Registers[instruction.A] = m_Program.Floats.at(instruction.B); break;
-                    case LogicOpcode::LoadVector3: m_Registers[instruction.A] = m_Program.Vectors.at(instruction.B); break;
-                    case LogicOpcode::LoadEntity: m_Registers[instruction.A] = m_Program.Entities.at(instruction.B); break;
+                    case LogicOpcode::LoadBoolean:
+                        m_Registers[instruction.A] = instruction.B != 0u; break;
+                    case LogicOpcode::LoadFloat:
+                        m_Registers[instruction.A] = m_Program.Floats.at(instruction.B); break;
+                    case LogicOpcode::LoadVector3:
+                        m_Registers[instruction.A] = m_Program.Vectors.at(instruction.B); break;
+                    case LogicOpcode::LoadEntity:
+                        m_Registers[instruction.A] = m_Program.Entities.at(instruction.B); break;
                     case LogicOpcode::AddFloat:
-                        m_Registers[instruction.A] = Register<double>(instruction.B, "addition input") +
+                        m_Registers[instruction.A] =
+                            Register<double>(instruction.B, "addition input") +
                             Register<double>(instruction.C, "addition input");
                         break;
                     case LogicOpcode::SetEntityPosition:
@@ -282,7 +300,6 @@ export namespace kairo::engine
         class Writer final
         {
         public:
-            std::vector<std::byte> Bytes;
             void U8(std::uint8_t value) { Bytes.push_back(static_cast<std::byte>(value)); }
             void U32(std::uint32_t value)
             {
@@ -302,47 +319,55 @@ export namespace kairo::engine
                 const auto bytes = std::as_bytes(std::span(value.data(), value.size()));
                 Bytes.insert(Bytes.end(), bytes.begin(), bytes.end());
             }
+            std::vector<std::byte> Bytes;
         };
 
         class Reader final
         {
         public:
-            explicit Reader(std::span<const std::byte> bytes) : Bytes(bytes) {}
-            std::uint8_t U8()
+            explicit Reader(std::span<const std::byte> bytes) : m_Bytes(bytes) {}
+            [[nodiscard]] std::uint8_t U8()
             {
-                if (Position >= Bytes.size()) throw std::invalid_argument("Logic artifact is truncated.");
-                return std::to_integer<std::uint8_t>(Bytes[Position++]);
+                if (m_Position >= m_Bytes.size())
+                    throw std::invalid_argument("Logic artifact is truncated.");
+                return std::to_integer<std::uint8_t>(m_Bytes[m_Position++]);
             }
-            std::uint32_t U32()
+            [[nodiscard]] std::uint32_t U32()
             {
                 std::uint32_t value = 0u;
-                for (unsigned shift = 0u; shift < 32u; shift += 8u) value |= std::uint32_t(U8()) << shift;
+                for (unsigned shift = 0u; shift < 32u; shift += 8u)
+                    value |= static_cast<std::uint32_t>(U8()) << shift;
                 return value;
             }
-            std::uint64_t U64()
+            [[nodiscard]] std::uint64_t U64()
             {
                 std::uint64_t value = 0u;
-                for (unsigned shift = 0u; shift < 64u; shift += 8u) value |= std::uint64_t(U8()) << shift;
+                for (unsigned shift = 0u; shift < 64u; shift += 8u)
+                    value |= static_cast<std::uint64_t>(U8()) << shift;
                 return value;
             }
-            std::string String()
+            [[nodiscard]] std::string String()
             {
                 const std::uint32_t count = U32();
-                if (count > Bytes.size() - Position) throw std::invalid_argument("Logic artifact string is truncated.");
+                if (count > m_Bytes.size() - m_Position)
+                    throw std::invalid_argument("Logic artifact string is truncated.");
                 std::string value(count, '\0');
-                if (count != 0u) std::memcpy(value.data(), Bytes.data() + Position, count);
-                Position += count;
+                if (count != 0u)
+                    std::memcpy(value.data(), m_Bytes.data() + m_Position, count);
+                m_Position += count;
                 return value;
             }
-            [[nodiscard]] bool Finished() const noexcept { return Position == Bytes.size(); }
-            [[nodiscard]] std::size_t Remaining() const noexcept { return Bytes.size() - Position; }
+            [[nodiscard]] bool Finished() const noexcept { return m_Position == m_Bytes.size(); }
+            [[nodiscard]] std::size_t Remaining() const noexcept
+            { return m_Bytes.size() - m_Position; }
         private:
-            std::span<const std::byte> Bytes;
-            std::size_t Position = 0u;
+            std::span<const std::byte> m_Bytes;
+            std::size_t m_Position = 0u;
         };
     }
 
-    [[nodiscard]] inline std::vector<std::byte> SerializeLogicProgram(const LogicProgram& program)
+    [[nodiscard]] inline std::vector<std::byte> SerializeLogicProgram(
+        const LogicProgram& program)
     {
         using namespace logic_bytecode_detail;
         program.Validate();
@@ -355,21 +380,23 @@ export namespace kairo::engine
         output.U32(static_cast<std::uint32_t>(program.Entities.size()));
         output.U32(static_cast<std::uint32_t>(program.Instructions.size()));
         output.U32(static_cast<std::uint32_t>(program.Entries.size()));
-        for (const auto& value : program.Strings) output.String(value);
-        for (const double value : program.Floats) output.U64(std::bit_cast<std::uint64_t>(value));
+        for (const std::string& value : program.Strings) output.String(value);
+        for (double value : program.Floats)
+            output.U64(std::bit_cast<std::uint64_t>(value));
         for (const auto& value : program.Vectors)
         {
             output.U64(std::bit_cast<std::uint64_t>(value.x));
             output.U64(std::bit_cast<std::uint64_t>(value.y));
             output.U64(std::bit_cast<std::uint64_t>(value.z));
         }
-        for (const Entity value : program.Entities) output.U32(value.Value);
-        for (const auto& value : program.Instructions)
+        for (Entity value : program.Entities) output.U32(value.Value);
+        for (const LogicInstruction& value : program.Instructions)
         {
             output.U8(static_cast<std::uint8_t>(value.Opcode));
-            output.U32(value.A); output.U32(value.B); output.U32(value.C); output.U32(value.D);
+            output.U32(value.A); output.U32(value.B);
+            output.U32(value.C); output.U32(value.D);
         }
-        for (const auto& value : program.Entries)
+        for (const LogicEntryPoint& value : program.Entries)
         {
             output.U8(static_cast<std::uint8_t>(value.Event));
             output.String(value.Action);
@@ -380,29 +407,39 @@ export namespace kairo::engine
         return output.Bytes;
     }
 
-    [[nodiscard]] inline LogicProgram ParseLogicProgram(std::span<const std::byte> bytes)
+    [[nodiscard]] inline LogicProgram ParseLogicProgram(
+        std::span<const std::byte> bytes)
     {
         using namespace logic_bytecode_detail;
-        if (bytes.size() > MaximumArtifactBytes) throw std::length_error("Logic artifact exceeds the 64 MiB runtime limit.");
-        if (bytes.size() < Magic.size() || !std::equal(Magic.begin(), Magic.end(), bytes.begin()))
+        if (bytes.size() > MaximumArtifactBytes)
+            throw std::length_error("Logic artifact exceeds the 64 MiB runtime limit.");
+        if (bytes.size() < Magic.size() ||
+            !std::equal(Magic.begin(), Magic.end(), bytes.begin()))
             throw std::invalid_argument("Logic artifact has an unsupported header.");
+
         Reader input(bytes.subspan(Magic.size()));
         LogicProgram result;
         result.RegisterCount = input.U32();
-        const auto strings = input.U32();
-        const auto floats = input.U32();
-        const auto vectors = input.U32();
-        const auto entities = input.U32();
-        const auto instructions = input.U32();
-        const auto entries = input.U32();
-        if (strings > LogicProgram::MaximumConstants || floats > LogicProgram::MaximumConstants ||
-            vectors > LogicProgram::MaximumConstants || entities > LogicProgram::MaximumConstants ||
-            instructions > LogicProgram::MaximumInstructions || entries > LogicProgram::MaximumEntries)
+        const std::uint32_t strings = input.U32();
+        const std::uint32_t floats = input.U32();
+        const std::uint32_t vectors = input.U32();
+        const std::uint32_t entities = input.U32();
+        const std::uint32_t instructions = input.U32();
+        const std::uint32_t entries = input.U32();
+        if (strings > LogicProgram::MaximumConstants ||
+            floats > LogicProgram::MaximumConstants ||
+            vectors > LogicProgram::MaximumConstants ||
+            entities > LogicProgram::MaximumConstants ||
+            instructions > LogicProgram::MaximumInstructions ||
+            entries > LogicProgram::MaximumEntries)
             throw std::length_error("Logic artifact declares a count above its safety limit.");
-        const std::uint64_t minimumPayload = std::uint64_t(strings) * 4u +
-            std::uint64_t(floats) * 8u + std::uint64_t(vectors) * 24u +
-            std::uint64_t(entities) * 4u + std::uint64_t(instructions) * 17u +
-            std::uint64_t(entries) * 9u;
+        const std::uint64_t minimumPayload =
+            static_cast<std::uint64_t>(strings) * 4u +
+            static_cast<std::uint64_t>(floats) * 8u +
+            static_cast<std::uint64_t>(vectors) * 24u +
+            static_cast<std::uint64_t>(entities) * 4u +
+            static_cast<std::uint64_t>(instructions) * 17u +
+            static_cast<std::uint64_t>(entries) * 9u;
         if (minimumPayload > input.Remaining())
             throw std::invalid_argument("Logic artifact declared pools cannot fit in the remaining bytes.");
         result.Strings.reserve(strings); result.Floats.reserve(floats); result.Vectors.reserve(vectors);

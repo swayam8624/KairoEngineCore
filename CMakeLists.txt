@@ -8,8 +8,8 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 
 # Immutable revisions used only outside a local workspace checkout. They track
 # the component commits validated by the KairoGameEngine superbuild.
-set(KAIRO_ENGINE_CORE_MATH_REVISION d77c98d7401f63b697c1486ebf59a1fae74c6490)
-set(KAIRO_ENGINE_CORE_ASSETS_REVISION 306a715094ff21707cba209e38eecb282bbb9f1c)
+set(KAIRO_ENGINE_CORE_MATH_REVISION e12778734a8e8ffe060255a9c03683ad6c4b1a92)
+set(KAIRO_ENGINE_CORE_ASSETS_REVISION d5d819faaa87ee0a9473e117f11394e57d7a1f2b)
 set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 7aaa24a4767433ad8911e0accbb2a480e607ded8)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -66,7 +66,7 @@ endif()
 
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
-    TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm LogicBytecode.cppm LogicArtifact.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
+    TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm RuntimeComponents.cppm Scene.cppm RuntimeSceneCommands.cppm SceneSerialization.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm LogicBytecode.cppm LogicArtifact.cppm Layer.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoAssets KairoReflection)
 
 if(KAIRO_ENGINE_CORE_BUILD_TESTS)
@@ -75,6 +75,9 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
     FetchContent_MakeAvailable(Catch2)
     add_executable(KairoEngineCoreTests tests/EngineCoreTests.cpp tests/DeterministicBytecodeTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
+    add_executable(KairoEngineCorePhase3Tests tests/Phase3RuntimeTests.cpp)
+    target_link_libraries(KairoEngineCorePhase3Tests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
     enable_testing()
     add_test(NAME KairoEngineCoreTests COMMAND KairoEngineCoreTests)
+    add_test(NAME KairoEngineCorePhase3Tests COMMAND KairoEngineCorePhase3Tests)
 endif()
