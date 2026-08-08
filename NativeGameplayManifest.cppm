@@ -85,8 +85,11 @@ export namespace kairo::engine
             stream.imbue(std::locale::classic());
             double value = 0.0;
             stream >> value;
+            if (stream.fail() || !std::isfinite(value))
+                throw NativeGameplayManifestFormatError(line, token.Column,
+                    std::string(field) + " must be a finite decimal number");
             stream >> std::ws;
-            if (!stream || !stream.eof() || !std::isfinite(value))
+            if (!stream.eof())
                 throw NativeGameplayManifestFormatError(line, token.Column,
                     std::string(field) + " must be a finite decimal number");
             return value;

@@ -145,6 +145,10 @@ export namespace kairo::engine
             if (error != std::errc{} || end != token.Text.data() + token.Text.size())
                 throw std::invalid_argument("Production manifest line " + std::to_string(line) +
                     " has invalid " + std::string(field) + ".");
+            stream >> std::ws;
+            if (!stream.eof())
+                throw std::invalid_argument("Production manifest line " + std::to_string(line) +
+                    " has invalid " + std::string(field) + ".");
             return value;
         }
 
@@ -154,8 +158,12 @@ export namespace kairo::engine
             std::istringstream stream(token.Text);
             stream.imbue(std::locale::classic());
             double value = 0.0;
-            stream >> value >> std::ws;
-            if (!stream || !stream.eof() || !std::isfinite(value))
+            stream >> value;
+            if (stream.fail() || !std::isfinite(value))
+                throw std::invalid_argument("Production manifest line " + std::to_string(line) +
+                    " has invalid " + std::string(field) + ".");
+            stream >> std::ws;
+            if (!stream.eof())
                 throw std::invalid_argument("Production manifest line " + std::to_string(line) +
                     " has invalid " + std::string(field) + ".");
             return value;

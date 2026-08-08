@@ -10,6 +10,7 @@ module;
 #include <iomanip>
 #include <limits>
 #include <optional>
+#include <locale>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -150,9 +151,14 @@ export namespace kairo::engine
 
         [[nodiscard]] inline float ParseFloat(const Token& token, std::size_t line, std::string_view field)
         {
+            std::istringstream stream(token.Text);
+            stream.imbue(std::locale::classic());
             float result = 0.0f;
-            const auto [end, error] = std::from_chars(token.Text.data(), token.Text.data() + token.Text.size(), result);
-            if (error != std::errc{} || end != token.Text.data() + token.Text.size() || !std::isfinite(result))
+            stream >> result;
+            if (stream.fail() || !std::isfinite(result))
+                throw SceneFormatError(line, token.Column, std::string(field) + " must be a finite float");
+            stream >> std::ws;
+            if (!stream.eof())
                 throw SceneFormatError(line, token.Column, std::string(field) + " must be a finite float");
             return result;
         }
