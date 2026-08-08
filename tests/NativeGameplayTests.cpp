@@ -4,6 +4,7 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+import Kairo.EngineCore.Entity;
 import Kairo.EngineCore.NativeGameplay;
 import Kairo.EngineCore.RuntimeWorld;
 import Kairo.EngineCore.Scene;
