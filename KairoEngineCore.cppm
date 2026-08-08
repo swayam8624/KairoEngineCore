@@ -14,6 +14,8 @@ export import Kairo.EngineCore.RuntimeWorld;
 export import Kairo.EngineCore.NativeGameplay;
 export import Kairo.EngineCore.NativeGameplayManifest;
 export import Kairo.EngineCore.ProductionSystems;
+export import Kairo.EngineCore.ProductionSystemsManifest;
+export import Kairo.EngineCore.ProductionRuntime;
 export import Kairo.EngineCore.Reflection;
 export import Kairo.EngineCore.Time;
 export import Kairo.EngineCore.Event;

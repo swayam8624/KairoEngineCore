@@ -1,5 +1,6 @@
 module;
 
+#include <algorithm>
 #include <charconv>
 #include <cmath>
 #include <cstddef>
@@ -74,6 +75,17 @@ export namespace kairo::engine
     {
         double CellSize = 128.0;
         std::int32_t Radius = 2;
+    };
+
+
+    class ProductionSystemsManifestFormatError final : public std::runtime_error
+    {
+    public:
+        ProductionSystemsManifestFormatError(std::size_t line, std::size_t column, std::string message)
+            : std::runtime_error("Kairo production manifest " + std::to_string(line) + ":" +
+                std::to_string(column) + ": " + message), Line(line), Column(column) {}
+        std::size_t Line;
+        std::size_t Column;
     };
 
     struct ProductionSystemsManifest final
@@ -278,7 +290,7 @@ export namespace kairo::engine
         while (std::getline(input, lineText))
         {
             ++line;
-            const auto tokens = TokenizeFormatLine<std::invalid_argument>(lineText, line);
+            const auto tokens = TokenizeFormatLine<ProductionSystemsManifestFormatError>(lineText, line);
             if (tokens.empty()) continue;
             if (!header)
             {
@@ -356,7 +368,7 @@ export namespace kairo::engine
         if (!header || !ended) throw std::invalid_argument("Production manifest is incomplete.");
         std::string trailing;
         while (std::getline(input, trailing))
-            if (!TokenizeFormatLine<std::invalid_argument>(trailing, ++line).empty())
+            if (!TokenizeFormatLine<ProductionSystemsManifestFormatError>(trailing, ++line).empty())
                 throw std::invalid_argument("Production manifest contains data after end.");
         ValidateProductionSystemsManifest(manifest);
         return manifest;

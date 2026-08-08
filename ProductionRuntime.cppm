@@ -1,7 +1,9 @@
 module;
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <optional>
 #include <stdexcept>
