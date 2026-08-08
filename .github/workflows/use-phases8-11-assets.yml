@@ -1,0 +1,22 @@
+name: Use Phase 8-11 Assets integration ref
+on:
+  push:
+    branches:
+      - agent/phases6-12-runtime
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/phases6-12-runtime
+      - run: python3 .github/scripts/use_phases8_11_assets.py
+      - run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add -A
+          git commit -m "Use Phase 8-11 Assets authoring integration ref"
+          git push
