@@ -9,7 +9,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 # Immutable revisions used only outside a local workspace checkout. They track
 # the component commits validated by the KairoGameEngine superbuild.
 set(KAIRO_ENGINE_CORE_MATH_REVISION e12778734a8e8ffe060255a9c03683ad6c4b1a92)
-set(KAIRO_ENGINE_CORE_ASSETS_REVISION d5d819faaa87ee0a9473e117f11394e57d7a1f2b)
+set(KAIRO_ENGINE_CORE_ASSETS_REVISION a50d801796b69f4ee98f43ecfea0fd6cdd66de85)
 set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 7aaa24a4767433ad8911e0accbb2a480e607ded8)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -49,7 +49,7 @@ if(NOT TARGET KairoMath)
 endif()
 
 if(NOT TARGET KairoAssets)
-    set(KAIRO_ASSETS_SOURCE_DIR "" CACHE PATH "Path to a local KairoAssets checkout")
+    set(KAIRO_ASSETS_SOURCE_DIR "" CACHE PATH "Path to local KairoAssets")
     if(KAIRO_ASSETS_SOURCE_DIR AND EXISTS "${KAIRO_ASSETS_SOURCE_DIR}/CMakeLists.txt")
         add_subdirectory("${KAIRO_ASSETS_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoAssets")
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../KairoAssets/CMakeLists.txt")
@@ -66,22 +66,23 @@ endif()
 
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
-    TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm
-    RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm
-    RuntimeWorld.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm
+    TextValidation.cppm TextFormat.cppm Entity.cppm Components.cppm RuntimeComponents.cppm ProjectDescriptor.cppm
+    Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm RuntimeWorld.cppm CoreReflection.cppm Event.cppm Time.cppm Input.cppm InputMap.cppm
     LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm GameplayVM.cppm Layer.cppm
     Platform.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
-target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoAssets KairoReflection)
+target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoReflection KairoAssets)
+add_library(Kairo::EngineCore ALIAS KairoEngineCore)
 
 if(KAIRO_ENGINE_CORE_BUILD_TESTS)
+    include(CTest)
     include(FetchContent)
     FetchContent_Declare(Catch2 GIT_REPOSITORY https://github.com/catchorg/Catch2.git GIT_TAG v3.5.4)
     FetchContent_MakeAvailable(Catch2)
     add_executable(KairoEngineCoreTests
         tests/EngineCoreTests.cpp
+        tests/RenderingComponentTests.cpp
         tests/DeterministicBytecodeTests.cpp
         tests/LogicStateTests.cpp
-        tests/RenderingComponentTests.cpp
         tests/RuntimeSceneCommandsTests.cpp
         tests/PlatformTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
