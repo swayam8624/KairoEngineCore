@@ -6,6 +6,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <system_error>
 
 #if defined(_WIN32)
 #ifndef NOMINMAX

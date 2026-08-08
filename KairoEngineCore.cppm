@@ -3,6 +3,7 @@ export import Kairo.Assets;
 export import Kairo.EngineCore.TextValidation;
 export import Kairo.EngineCore.TextFormat;
 export import Kairo.EngineCore.ProjectDescriptor;
+export import Kairo.EngineCore.Platform;
 export import Kairo.EngineCore.Entity;
 export import Kairo.EngineCore.Components;
 export import Kairo.EngineCore.RuntimeComponents;
