@@ -4,4 +4,4 @@
 
 The current boundary covers host-family detection, native path conventions, environment access, and replace-existing file moves. Cross-platform behavior must be validated on Linux, macOS, and Windows.
 
-C++ standard-library and module portability is treated separately: translation units include what they use, and exported value types use explicit semantic comparison when defaulted cross-module comparisons are not portable.
+C++ standard-library and module portability is treated separately: translation units include what they use, exported value types use explicit semantic comparison when defaulted cross-module comparisons are not portable, and persisted decimal text is parsed without relying on deployment-target-specific floating-point `std::from_chars` support.
