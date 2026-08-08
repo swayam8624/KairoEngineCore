@@ -3,6 +3,7 @@ module;
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <map>
@@ -10,6 +11,7 @@ module;
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
