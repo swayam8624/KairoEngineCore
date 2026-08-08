@@ -10,6 +10,8 @@ export import Kairo.EngineCore.Scene;
 export import Kairo.EngineCore.RuntimeSceneCommands;
 export import Kairo.EngineCore.SceneSerialization;
 export import Kairo.EngineCore.RuntimeWorld;
+export import Kairo.EngineCore.NativeGameplay;
+export import Kairo.EngineCore.ProductionSystems;
 export import Kairo.EngineCore.Reflection;
 export import Kairo.EngineCore.Time;
 export import Kairo.EngineCore.Event;
