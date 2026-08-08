@@ -5,3 +5,5 @@ Phase 7 uses `Kairo.EngineCore.NativeGameplay` as the compiler-independent refle
 Phase 12 keeps animation, terrain/foliage, particles, cloth, fluids, and world streaming behind the versioned `Config/Production.kproduction` manifest. `ProductionPerformanceBudget` validates subsystem sizes and an estimated per-frame work ceiling before runtime construction. `ProductionRuntime` orchestrates the configured systems and publishes deterministic operation/profiling counters so Editor previews, Player execution, tests, and future external profilers share one workload contract.
 
 The current terrain/foliage, particle, cloth, fluid, streaming and animation implementations remain modular Core kernels. More specialized GPU or large-world backends can replace individual kernels behind these persisted descriptors and budgets without changing project configuration.
+
+The Phase 7/12 acceptance matrix compiles the complete persisted-manifest/runtime surface on Ubuntu Clang, macOS LLVM/libc++, and Windows MSVC, including direct module-import hygiene and portable decimal-text parsing.
