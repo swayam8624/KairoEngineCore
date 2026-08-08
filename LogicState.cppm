@@ -30,7 +30,24 @@ export namespace kairo::engine
     {
         std::string Name;
         LogicStateValue Value;
-        friend bool operator==(const LogicStateEntry&, const LogicStateEntry&) = default;
+        friend bool operator==(const LogicStateEntry& left, const LogicStateEntry& right)
+        {
+            if (left.Name != right.Name || left.Value.index() != right.Value.index()) return false;
+            switch (left.Value.index())
+            {
+                case 0u: return std::get<bool>(left.Value) == std::get<bool>(right.Value);
+                case 1u: return std::get<double>(left.Value) == std::get<double>(right.Value);
+                case 2u:
+                {
+                    const auto& a = std::get<kairo::foundation::math::Vec3d>(left.Value);
+                    const auto& b = std::get<kairo::foundation::math::Vec3d>(right.Value);
+                    return a.x == b.x && a.y == b.y && a.z == b.z;
+                }
+                case 3u: return std::get<Entity>(left.Value).Value == std::get<Entity>(right.Value).Value;
+                case 4u: return std::get<std::string>(left.Value) == std::get<std::string>(right.Value);
+                default: return false;
+            }
+        }
     };
 
     struct LogicTimer final
