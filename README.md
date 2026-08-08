@@ -199,6 +199,16 @@ rigid-body dynamic 1 1 0.05 0.05
 collider box 0.5 0.5 0.5 0.5 0.1 1 4294967295 false
 ```
 
+## Shipping runtime contracts
+
+`Kairo.EngineCore.ShippingRuntime` supplies the device-neutral Phase 13 audio
+mixer, renderer-neutral Phase 14 UI/localization/accessibility scene, and the
+Phase 15 canonical save/delta/replay contract. Editor and Player use these same
+types; platform audio, UI rendering, assistive-technology, and network adapters
+remain replaceable I/O boundaries. See
+[`docs/PHASES_13_15_SHIPPING_RUNTIME.md`](docs/PHASES_13_15_SHIPPING_RUNTIME.md)
+for ownership and safety rules.
+
 ```bash
 cmake -S . -B build -G Ninja -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
 cmake --build build
