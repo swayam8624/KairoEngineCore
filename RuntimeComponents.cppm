@@ -134,6 +134,34 @@ export namespace kairo::engine
         }
     };
 
+    /// Persistent reference to one hierarchy-preserving imported scene asset.
+    ///
+    /// Input: a typed KairoAssets scene handle plus renderer-neutral visibility,
+    /// shadow, and layer policy. Output: one authored instance whose imported
+    /// node hierarchy is expanded by a renderer adapter. Task: retain a single
+    /// stable asset identity instead of flattening glTF nodes into unrelated
+    /// mesh records. The instance entity's world transform is composed before
+    /// every imported node transform. Importing, GPU upload, and material
+    /// resolution deliberately remain outside EngineCore.
+    struct SceneInstanceComponent final
+    {
+        kairo::assets::SceneAssetHandle SceneAsset;
+        bool Visible = true;
+        bool CastShadows = true;
+        bool ReceiveShadows = true;
+        std::uint64_t RenderLayers = AllRenderLayers;
+
+        void Validate() const
+        {
+            if (!SceneAsset.IsValid())
+                throw std::invalid_argument(
+                    "SceneInstanceComponent requires a valid scene asset handle.");
+            if (RenderLayers == 0u)
+                throw std::invalid_argument(
+                    "SceneInstanceComponent render layer mask cannot be empty.");
+        }
+    };
+
     enum class CameraProjection : std::uint8_t { Perspective, Orthographic };
     enum class CameraClearMode : std::uint8_t { Environment, SolidColor, DepthOnly, Nothing };
 

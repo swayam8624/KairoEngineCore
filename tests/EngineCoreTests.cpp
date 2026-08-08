@@ -242,7 +242,7 @@ TEST_CASE("Scene V2 migrates V1 defaults and resolves forward hierarchy referenc
     CHECK_FALSE(legacy.Parent({ 5u }).has_value());
     CHECK(legacy.RigidBody({ 5u }).Motion == RigidBodyMotion::Dynamic);
     CHECK(legacy.Collider({ 5u }).Shape == ColliderShape::Box);
-    CHECK(SerializeScene(legacy, assets).starts_with("kairo-scene 3\n"));
+    CHECK(SerializeScene(legacy, assets).starts_with("kairo-scene 4\n"));
 
     const std::string versionTwo =
         "kairo-scene 2\n"

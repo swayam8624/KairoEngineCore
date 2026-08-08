@@ -20,6 +20,8 @@ namespace
         "10000000-0000-4000-8000-000000000003");
     const auto EnvironmentID = kairo::assets::AssetID::Parse(
         "10000000-0000-4000-8000-000000000004");
+    const auto ImportedSceneID = kairo::assets::AssetID::Parse(
+        "10000000-0000-4000-8000-000000000005");
 
     void PopulateRenderingAssets(kairo::assets::AssetRegistry& assets)
     {
@@ -31,6 +33,8 @@ namespace
             kairo::assets::AssetOrigin::Generated, "Materials/b.kmat", "kairo.material", 1u, {} });
         assets.Insert({ EnvironmentID, kairo::assets::AssetType::Texture2D,
             kairo::assets::AssetOrigin::SourceFile, "Textures/environment.hdr", "kairo.stb-texture", 1u, {} });
+        assets.Insert({ ImportedSceneID, kairo::assets::AssetType::Scene,
+            kairo::assets::AssetOrigin::SourceFile, "Scenes/model.glb", "kairo.gltf.scene", 1u, {} });
     }
 }
 
@@ -49,6 +53,11 @@ TEST_CASE("Rendering components enforce renderer-neutral invariants",
     REQUIRE_THROWS_AS(mesh.MaterialForSlot(2u), std::out_of_range);
     mesh.RenderLayers = 0u;
     REQUIRE_THROWS_AS(mesh.Validate(), std::invalid_argument);
+
+    SceneInstanceComponent instance{ { ImportedSceneID }, true, false, true, 0x20u };
+    REQUIRE_NOTHROW(instance.Validate());
+    instance.RenderLayers = 0u;
+    REQUIRE_THROWS_AS(instance.Validate(), std::invalid_argument);
 
     CameraComponent camera;
     camera.Projection = CameraProjection::Orthographic;
@@ -156,7 +165,7 @@ TEST_CASE("Runtime scene copies preserve rendering data without mutating authori
     CHECK(runtime.Environment(environmentEntity).ExposureEV100 == -2.0f);
 }
 
-TEST_CASE("Scene V3 round trips complete rendering authoring data",
+TEST_CASE("Scene V4 round trips complete rendering authoring data",
     "[KairoEngineCore][Rendering][Serialization]")
 {
     using namespace kairo::engine;
@@ -173,6 +182,13 @@ TEST_CASE("Scene V3 round trips complete rendering authoring data",
     mesh.ReceiveShadows = true;
     mesh.RenderLayers = 0x12u;
     source.SetMeshRenderer(renderable, mesh);
+
+    const Entity importedEntity = source.CreateEntityWithID({ 6u }, "Imported Scene");
+    SceneInstanceComponent instance;
+    instance.SceneAsset = { ImportedSceneID };
+    instance.CastShadows = false;
+    instance.RenderLayers = 0x78u;
+    source.SetSceneInstance(importedEntity, instance);
 
     const Entity cameraEntity = source.CreateEntityWithID({ 3u }, "Camera");
     CameraComponent camera;
@@ -216,7 +232,7 @@ TEST_CASE("Scene V3 round trips complete rendering authoring data",
     source.SetEnvironment(environmentEntity, environment);
 
     const std::string encoded = SerializeScene(source, assets);
-    REQUIRE(encoded.starts_with("kairo-scene 3\n"));
+    REQUIRE(encoded.starts_with("kairo-scene 4\n"));
     const Scene restored = ParseScene(encoded, assets);
 
     const auto& restoredMesh = restored.MeshRenderer(renderable);
@@ -224,6 +240,10 @@ TEST_CASE("Scene V3 round trips complete rendering authoring data",
     CHECK(restoredMesh.MaterialForSlot(1u).ID == MaterialBID);
     CHECK_FALSE(restoredMesh.CastShadows);
     CHECK(restoredMesh.RenderLayers == 0x12u);
+    REQUIRE(restored.HasSceneInstance(importedEntity));
+    CHECK(restored.SceneInstance(importedEntity).SceneAsset.ID == ImportedSceneID);
+    CHECK_FALSE(restored.SceneInstance(importedEntity).CastShadows);
+    CHECK(restored.SceneInstance(importedEntity).RenderLayers == 0x78u);
     CHECK(restored.Camera(cameraEntity).Projection == CameraProjection::Orthographic);
     CHECK(restored.Camera(cameraEntity).ClearMode == CameraClearMode::SolidColor);
     CHECK(restored.Camera(cameraEntity).ExposureEV100 == -1.5f);
@@ -248,7 +268,7 @@ TEST_CASE("Scene migration and reference failures are explicit",
     const Scene migrated = ParseScene(versionTwo, assets);
     CHECK(migrated.Camera({ 1u }).Projection == CameraProjection::Perspective);
     CHECK(migrated.Camera({ 1u }).ClearMode == CameraClearMode::Environment);
-    CHECK(SerializeScene(migrated, assets).starts_with("kairo-scene 3\n"));
+    CHECK(SerializeScene(migrated, assets).starts_with("kairo-scene 4\n"));
 
     const auto missing = kairo::assets::AssetID::Parse(
         "ffffffff-ffff-4fff-8fff-ffffffffffff");

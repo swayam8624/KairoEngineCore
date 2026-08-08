@@ -204,6 +204,45 @@ export namespace kairo::engine
             return removed;
         }
 
+        /// Stores or replaces a hierarchy-preserving imported scene instance.
+        /// Asset loading remains the responsibility of Editor/Player adapters.
+        void SetSceneInstance(Entity entity, SceneInstanceComponent component)
+        {
+            component.Validate();
+            RecordFor(entity).SceneInstance = std::move(component);
+        }
+        [[nodiscard]] bool HasSceneInstance(Entity entity) const
+        {
+            return RecordFor(entity).SceneInstance.has_value();
+        }
+        [[nodiscard]] SceneInstanceComponent& SceneInstance(Entity entity)
+        {
+            return RequireComponent(RecordFor(entity).SceneInstance, "scene instance");
+        }
+        [[nodiscard]] const SceneInstanceComponent& SceneInstance(Entity entity) const
+        {
+            return RequireComponent(RecordFor(entity).SceneInstance, "scene instance");
+        }
+        bool RemoveSceneInstance(Entity entity)
+        {
+            auto& component = RecordFor(entity).SceneInstance;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+
+        /// Output: visible imported-scene instances in stable entity-ID order.
+        [[nodiscard]] std::vector<Entity> SceneInstanceEntities() const
+        {
+            std::vector<Entity> result;
+            for (const Entity entity : Entities())
+                if (const auto& component = RecordFor(entity).SceneInstance;
+                    component.has_value() && component->Visible &&
+                    IsActiveInHierarchy(entity))
+                    result.push_back(entity);
+            return result;
+        }
+
         /// Input: entity and projectable camera parameters.
         /// Output: stores or replaces the camera component after validation.
         /// Degeneracy: invalid projection data and a second primary camera are
@@ -419,6 +458,7 @@ export namespace kairo::engine
             std::optional<Entity> Parent;
             std::vector<Entity> Children;
             std::optional<MeshRendererComponent> MeshRenderer;
+            std::optional<SceneInstanceComponent> SceneInstance;
             std::optional<CameraComponent> Camera;
             std::optional<LightComponent> Light;
             std::optional<EnvironmentComponent> Environment;

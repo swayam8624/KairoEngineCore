@@ -112,8 +112,8 @@ and deadzone. Supported devices are `key`, `mouse-button`, `gamepad-button`, and
 
 Scene enumeration returns stable entity IDs in ascending creation order so
 hierarchies, serializers, and systems do not depend on unordered storage order.
-Scenes own optional mesh renderer, camera, light, environment, rigid-body, and
-collider components. Mesh renderer components use persistent typed
+Scenes own optional mesh renderer, imported-scene instance, camera, light,
+environment, rigid-body, and collider components. Mesh renderer components use persistent typed
 `KairoAssets` handles rather than path strings, so asset moves do not invalidate
 scene references. Ordered material slots map submesh slot zero to
 `MaterialAsset` and subsequent slots to `AdditionalMaterialSlots`.
@@ -127,7 +127,7 @@ asset identity API but never owns decoded asset or GPU-resource lifetimes.
 
 ## Scene persistence
 
-`Kairo.EngineCore.SceneSerialization` provides deterministic `kairo-scene 3`
+`Kairo.EngineCore.SceneSerialization` provides deterministic `kairo-scene 4`
 text serialization with stable entity IDs, quoted names, transforms, complete
 rendering descriptors, parent relationships, enabled state, 64 layers, and
 bounded sorted tags. Loading validates mesh, material, environment-texture, and
@@ -137,22 +137,23 @@ file loading replaces the destination scene only after the complete document
 validates, and saving uses a flushed same-directory temporary followed by
 atomic replacement.
 
-V1 and V2 remain readable. V1 migrates in memory to root entities that are
+V1, V2, and V3 remain readable. V1 migrates in memory to root entities that are
 enabled, on layer zero, with no tags. V1/V2 cameras and mesh renderers receive
-the documented V3 defaults; only an explicit save emits V3. Parent references
+the documented V3 defaults; only an explicit save emits V4. Parent references
 may point forward in the file, but missing entities, self-parenting, cycles, and
 multiple primary cameras are rejected with source locations. Runtime
 reparenting keeps the local transform unchanged, and destroying a parent
 destroys its complete descendant subtree so no dangling relationships remain.
 
 ```text
-kairo-scene 3
+kairo-scene 4
 entity 9 "Hero Cube"
 enabled true
 layer 2
 tag "player"
 transform 0 1 0 0 0 0 1 1 1 1
 mesh-renderer 00000000-0000-4000-8000-000000000101 true true true 18446744073709551615 2 00000000-0000-4000-8000-000000000102 00000000-0000-4000-8000-000000000103
+scene-instance 00000000-0000-4000-8000-000000000105 true true true 18446744073709551615
 end
 ```
 
@@ -169,8 +170,11 @@ end
   The enabled highest-priority environment wins, with stable entity ID as the tie break.
 - Renderables store visibility, ordered material slots, cast/receive-shadow flags,
   and a 64-bit render-layer mask. EngineCore validates references but never uploads them.
+- Scene instances store one stable typed scene-asset identity plus visibility,
+  cast/receive-shadow flags, and render layers. Renderer adapters expand the
+  hierarchy; serialization never persists process-local mesh handles.
 
-The complete V3 component records are intentionally line-oriented and diffable:
+The complete V4 component records are intentionally line-oriented and diffable:
 
 ```text
 camera orthographic 1.04719758 12 0.1 1000 0 true environment 0.02 0.025 0.035 1 18446744073709551615

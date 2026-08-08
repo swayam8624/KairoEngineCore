@@ -385,7 +385,7 @@ export namespace kairo::engine
         }
     }
 
-    /// Input: a complete UTF-8 `kairo-scene 1|2|3` document and the project asset registry.
+    /// Input: a complete UTF-8 `kairo-scene 1|2|3|4` document and the project asset registry.
     /// Output: a new scene with restored IDs and validated typed asset references.
     /// Task: deserialize authored state with deterministic behavior and exact
     /// line/column diagnostics. Typed physics descriptors remain independent
@@ -410,6 +410,7 @@ export namespace kairo::engine
         std::uint32_t version = 0u;
         bool transformSeen = false;
         bool meshSeen = false;
+        bool sceneInstanceSeen = false;
         bool cameraSeen = false;
         bool lightSeen = false;
         bool environmentSeen = false;
@@ -435,6 +436,7 @@ export namespace kairo::engine
                 if (tokens[1].Text == "1") version = 1u;
                 else if (tokens[1].Text == "2") version = 2u;
                 else if (tokens[1].Text == "3") version = 3u;
+                else if (tokens[1].Text == "4") version = 4u;
                 else throw SceneFormatError(lineNumber, tokens[1].Column, "unsupported scene version");
                 headerSeen = true;
                 continue;
@@ -454,6 +456,7 @@ export namespace kairo::engine
                 catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
                 transformSeen = false;
                 meshSeen = false;
+                sceneInstanceSeen = false;
                 cameraSeen = false;
                 lightSeen = false;
                 environmentSeen = false;
@@ -590,6 +593,31 @@ export namespace kairo::engine
                     }
                 }
                 meshSeen = true;
+            }
+            else if (tokens[0].Text == "scene-instance")
+            {
+                if (version < 4u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "scene-instance requires kairo-scene 4");
+                if (sceneInstanceSeen) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "duplicate scene-instance component");
+                RequireCount(tokens, 6u, lineNumber, "scene-instance");
+                SceneInstanceComponent component;
+                component.SceneAsset = { ParseAssetID(tokens[1], lineNumber) };
+                component.Visible = ParseBool(tokens[2], lineNumber);
+                component.CastShadows = ParseBool(tokens[3], lineNumber);
+                component.ReceiveShadows = ParseBool(tokens[4], lineNumber);
+                component.RenderLayers = ParseUInt64(tokens[5], lineNumber,
+                    "render layer mask");
+                try
+                {
+                    (void)assets.Resolve(component.SceneAsset);
+                    scene.SetSceneInstance(*current, component);
+                }
+                catch (const std::exception& error)
+                {
+                    throw SceneFormatError(lineNumber, tokens[1].Column, error.what());
+                }
+                sceneInstanceSeen = true;
             }
             else if (tokens[0].Text == "camera")
             {
@@ -825,7 +853,7 @@ export namespace kairo::engine
         return scene;
     }
 
-    /// Output: stable ID-ordered and diff-friendly `kairo-scene 3` text.
+    /// Output: stable ID-ordered and diff-friendly `kairo-scene 4` text.
     /// Preconditions: transforms and public components must remain valid, and
     /// every mesh/material reference must resolve with its declared asset type.
     [[nodiscard]] inline std::string SerializeScene(const Scene& scene, const kairo::assets::AssetRegistry& assets)
@@ -833,7 +861,7 @@ export namespace kairo::engine
         using namespace scene_format_detail;
         std::ostringstream output;
         output << std::setprecision(std::numeric_limits<float>::max_digits10);
-        output << "kairo-scene 3\n";
+        output << "kairo-scene 4\n";
         (void)scene.PrimaryCamera();
         for (const Entity entity : scene.Entities())
         {
@@ -868,6 +896,17 @@ export namespace kairo::engine
                 for (std::size_t slot = 0u; slot < mesh.MaterialSlotCount(); ++slot)
                     output << ' ' << mesh.MaterialForSlot(slot).ID.ToString();
                 output << '\n';
+            }
+            if (scene.HasSceneInstance(entity))
+            {
+                const auto& instance = scene.SceneInstance(entity);
+                instance.Validate();
+                (void)assets.Resolve(instance.SceneAsset);
+                output << "scene-instance " << instance.SceneAsset.ID.ToString() << ' '
+                    << (instance.Visible ? "true" : "false") << ' '
+                    << (instance.CastShadows ? "true" : "false") << ' '
+                    << (instance.ReceiveShadows ? "true" : "false") << ' '
+                    << instance.RenderLayers << '\n';
             }
             if (scene.HasCamera(entity))
             {
