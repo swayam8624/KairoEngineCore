@@ -13,14 +13,31 @@ jobs:
         with:
           ref: agent/phase1-5-portability-hardening
       - name: Apply portability hardening
-        shell: python
+        shell: python {0}
         run: |
           from pathlib import Path
 
           p = Path('LogicState.cppm')
           s = p.read_text()
-          old = '''        friend bool operator==(const LogicStateEntry&, const LogicStateEntry&) = default;'''
-          new = '''        friend bool operator==(const LogicStateEntry& left, const LogicStateEntry& right)\n        {\n            if (left.Name != right.Name || left.Value.index() != right.Value.index()) return false;\n            switch (left.Value.index())\n            {\n                case 0u: return std::get<bool>(left.Value) == std::get<bool>(right.Value);\n                case 1u: return std::get<double>(left.Value) == std::get<double>(right.Value);\n                case 2u:\n                {\n                    const auto& a = std::get<kairo::foundation::math::Vec3d>(left.Value);\n                    const auto& b = std::get<kairo::foundation::math::Vec3d>(right.Value);\n                    return a.x == b.x && a.y == b.y && a.z == b.z;\n                }\n                case 3u: return std::get<Entity>(left.Value).Value == std::get<Entity>(right.Value).Value;\n                case 4u: return std::get<std::string>(left.Value) == std::get<std::string>(right.Value);\n                default: return false;\n            }\n        }'''
+          old = '        friend bool operator==(const LogicStateEntry&, const LogicStateEntry&) = default;'
+          new = '''        friend bool operator==(const LogicStateEntry& left, const LogicStateEntry& right)
+        {
+            if (left.Name != right.Name || left.Value.index() != right.Value.index()) return false;
+            switch (left.Value.index())
+            {
+                case 0u: return std::get<bool>(left.Value) == std::get<bool>(right.Value);
+                case 1u: return std::get<double>(left.Value) == std::get<double>(right.Value);
+                case 2u:
+                {
+                    const auto& a = std::get<kairo::foundation::math::Vec3d>(left.Value);
+                    const auto& b = std::get<kairo::foundation::math::Vec3d>(right.Value);
+                    return a.x == b.x && a.y == b.y && a.z == b.z;
+                }
+                case 3u: return std::get<Entity>(left.Value).Value == std::get<Entity>(right.Value).Value;
+                case 4u: return std::get<std::string>(left.Value) == std::get<std::string>(right.Value);
+                default: return false;
+            }
+        }'''
           if old not in s: raise SystemExit('LogicState equality pattern not found')
           p.write_text(s.replace(old, new))
 
@@ -77,30 +94,25 @@ export namespace kairo::engine::platform
     }
 
     [[nodiscard]] constexpr char NativePathSeparator() noexcept
-    {
-        return CurrentFamily() == Family::Windows ? '\\' : '/';
-    }
+    { return CurrentFamily() == Family::Windows ? '\\' : '/'; }
 
     [[nodiscard]] constexpr std::string_view ExecutableSuffix() noexcept
-    {
-        return CurrentFamily() == Family::Windows ? std::string_view{".exe"} : std::string_view{};
-    }
+    { return CurrentFamily() == Family::Windows ? std::string_view{".exe"} : std::string_view{}; }
 
     [[nodiscard]] inline std::optional<std::string> Environment(std::string_view name)
     {
         if (name.empty()) return std::nullopt;
+        const std::string key(name);
     #if defined(_WIN32)
-        int required = 0;
-        if (getenv_s(nullptr, reinterpret_cast<size_t*>(&required), std::string(name).c_str()) != 0 || required == 0)
-            return std::nullopt;
-        std::string value(static_cast<std::size_t>(required), '\0');
+        size_t required = 0;
+        if (getenv_s(&required, nullptr, 0, key.c_str()) != 0 || required == 0) return std::nullopt;
+        std::string value(required, '\0');
         size_t written = 0;
-        if (getenv_s(&written, value.data(), value.size(), std::string(name).c_str()) != 0 || written == 0)
-            return std::nullopt;
+        if (getenv_s(&written, value.data(), value.size(), key.c_str()) != 0 || written == 0) return std::nullopt;
         if (!value.empty() && value.back() == '\0') value.pop_back();
         return value;
     #else
-        const char* value = std::getenv(std::string(name).c_str());
+        const char* value = std::getenv(key.c_str());
         return value == nullptr ? std::nullopt : std::optional<std::string>{value};
     #endif
     }
