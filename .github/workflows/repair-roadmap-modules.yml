@@ -1,0 +1,74 @@
+name: Repair roadmap modules
+
+on:
+  push:
+    branches:
+      - agent/complete-roadmap
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/complete-roadmap
+          fetch-depth: 0
+      - name: Fix direct dependencies and MSVC boundaries
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          native = Path('NativeGameplay.cppm')
+          text = native.read_text()
+          if '#include <cmath>\n' not in text:
+              text = text.replace('#include <algorithm>\n', '#include <algorithm>\n#include <cmath>\n', 1)
+          native.write_text(text)
+
+          production = Path('ProductionSystems.cppm')
+          text = production.read_text()
+          if '#include <compare>\n' not in text:
+              text = text.replace('#include <cmath>\n', '#include <cmath>\n#include <compare>\n', 1)
+          if '#include <string_view>\n' not in text:
+              text = text.replace('#include <string>\n', '#include <string>\n#include <string_view>\n', 1)
+          production.write_text(text)
+
+          test = Path('tests/Phase3RuntimeTests.cpp')
+          text = test.read_text()
+          if '#include <variant>\n' not in text:
+              text = text.replace('#include <utility>\n#include <vector>\n',
+                                  '#include <utility>\n#include <variant>\n#include <vector>\n', 1)
+          test.write_text(text)
+
+          state = Path('LogicState.cppm')
+          text = state.read_text()
+          old = '        friend bool operator==(const LogicStateEntry&, const LogicStateEntry&) = default;'
+          if old in text:
+              new = '''        friend bool operator==(const LogicStateEntry& left, const LogicStateEntry& right)
+                  {
+                      if (left.Name != right.Name || left.Value.index() != right.Value.index()) return false;
+                      return std::visit([](const auto& a, const auto& b) -> bool {
+                          using Left = std::decay_t<decltype(a)>;
+                          using Right = std::decay_t<decltype(b)>;
+                          if constexpr (!std::is_same_v<Left, Right>) return false;
+                          else if constexpr (std::is_same_v<Left, kairo::foundation::math::Vec3d>)
+                              return a.x == b.x && a.y == b.y && a.z == b.z;
+                          else return a == b;
+                      }, left.Value, right.Value);
+                  }'''
+              text = text.replace(old, new, 1)
+          state.write_text(text)
+
+          for path in [Path('.github/workflows/repair-roadmap-modules.yml'),
+                       Path('.github/workflows/apply-phase3-test-variant-include.yml')]:
+              if path.exists(): path.unlink()
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Fix roadmap module portability'
+          git push origin HEAD:agent/complete-roadmap
