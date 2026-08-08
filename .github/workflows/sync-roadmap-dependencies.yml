@@ -1,0 +1,36 @@
+name: Sync roadmap dependencies
+
+on:
+  push:
+    branches: [agent/complete-roadmap]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: agent/complete-roadmap
+          fetch-depth: 0
+      - name: Pin companion Assets revision
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('CMakeLists.txt')
+          text = path.read_text()
+          text = text.replace(
+              'set(KAIRO_ENGINE_CORE_ASSETS_REVISION d5d819faaa87ee0a9473e117f11394e57d7a1f2b)',
+              'set(KAIRO_ENGINE_CORE_ASSETS_REVISION 0cf98ad25d4b7c58eead960d70e15fb915f8c03a)', 1)
+          path.write_text(text)
+          Path('.github/workflows/sync-roadmap-dependencies.yml').unlink()
+          PY
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Pin roadmap Assets revision'
+          git push origin HEAD:agent/complete-roadmap
