@@ -206,12 +206,21 @@ export namespace kairo::engine
 
         /// Input: entity and projectable camera parameters.
         /// Output: stores or replaces the camera component after validation.
-        /// Degeneracy: invalid FOV or clipping planes are rejected before the
-        /// scene changes, preserving the previous component when replacement fails.
+        /// Degeneracy: invalid projection data and a second primary camera are
+        /// rejected before the scene changes, preserving the previous component.
         void SetCamera(Entity entity, CameraComponent component)
         {
             Record& record = RecordFor(entity);
             component.Validate();
+            if (component.Primary)
+            {
+                for (const Entity candidate : CameraEntities())
+                {
+                    if (candidate != entity && RecordFor(candidate).Camera->Primary)
+                        throw std::invalid_argument(
+                            "Scene already contains a primary camera.");
+                }
+            }
             record.Camera = component;
         }
         [[nodiscard]] bool HasCamera(Entity entity) const { return RecordFor(entity).Camera.has_value(); }
@@ -223,6 +232,108 @@ export namespace kairo::engine
             const bool removed = component.has_value();
             component.reset();
             return removed;
+        }
+
+        /// Output: camera entities in stable entity-ID order.
+        [[nodiscard]] std::vector<Entity> CameraEntities() const
+        {
+            std::vector<Entity> result;
+            for (const Entity entity : Entities())
+                if (RecordFor(entity).Camera.has_value()) result.push_back(entity);
+            return result;
+        }
+
+        /// Output: the single authored primary camera, if one exists.
+        /// Degeneracy: SetCamera prevents multiple primary flags. The explicit
+        /// check remains defensive for scenes produced by future low-level loaders.
+        [[nodiscard]] std::optional<Entity> PrimaryCamera() const
+        {
+            std::optional<Entity> result;
+            for (const Entity entity : CameraEntities())
+            {
+                if (!RecordFor(entity).Camera->Primary) continue;
+                if (result.has_value())
+                    throw std::logic_error("Scene contains more than one primary camera.");
+                result = entity;
+            }
+            return result;
+        }
+
+        /// Stores a renderer-neutral authored light. Runtime shadow maps,
+        /// descriptor sets, and ray-tracing emitters remain adapter-owned.
+        void SetLight(Entity entity, LightComponent component)
+        {
+            component.Validate();
+            RecordFor(entity).Light = component;
+        }
+        [[nodiscard]] bool HasLight(Entity entity) const { return RecordFor(entity).Light.has_value(); }
+        [[nodiscard]] LightComponent& Light(Entity entity)
+        {
+            return RequireComponent(RecordFor(entity).Light, "light");
+        }
+        [[nodiscard]] const LightComponent& Light(Entity entity) const
+        {
+            return RequireComponent(RecordFor(entity).Light, "light");
+        }
+        bool RemoveLight(Entity entity)
+        {
+            auto& component = RecordFor(entity).Light;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+        [[nodiscard]] std::vector<Entity> LightEntities() const
+        {
+            std::vector<Entity> result;
+            for (const Entity entity : Entities())
+                if (RecordFor(entity).Light.has_value() && IsActiveInHierarchy(entity))
+                    result.push_back(entity);
+            return result;
+        }
+
+        /// Stores one environment candidate. The scene may retain several
+        /// candidates so future volume systems do not require a file-format
+        /// break; ActiveEnvironment resolves the global candidate today.
+        void SetEnvironment(Entity entity, EnvironmentComponent component)
+        {
+            component.Validate();
+            RecordFor(entity).Environment = std::move(component);
+        }
+        [[nodiscard]] bool HasEnvironment(Entity entity) const
+        {
+            return RecordFor(entity).Environment.has_value();
+        }
+        [[nodiscard]] EnvironmentComponent& Environment(Entity entity)
+        {
+            return RequireComponent(RecordFor(entity).Environment, "environment");
+        }
+        [[nodiscard]] const EnvironmentComponent& Environment(Entity entity) const
+        {
+            return RequireComponent(RecordFor(entity).Environment, "environment");
+        }
+        bool RemoveEnvironment(Entity entity)
+        {
+            auto& component = RecordFor(entity).Environment;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+
+        /// Output: enabled highest-priority environment, breaking ties by the
+        /// lowest stable entity ID. Disabled entities/ancestors are excluded.
+        [[nodiscard]] std::optional<Entity> ActiveEnvironment() const
+        {
+            std::optional<Entity> result;
+            for (const Entity entity : Entities())
+            {
+                const auto& environment = RecordFor(entity).Environment;
+                if (!environment.has_value() || !environment->Enabled ||
+                    !IsActiveInHierarchy(entity)) continue;
+                if (!result.has_value() || environment->Priority >
+                    RecordFor(*result).Environment->Priority)
+                    result = entity;
+            }
+            return result;
         }
 
         /// Attaches renderer- and VM-independent authored gameplay logic.
@@ -309,6 +420,8 @@ export namespace kairo::engine
             std::vector<Entity> Children;
             std::optional<MeshRendererComponent> MeshRenderer;
             std::optional<CameraComponent> Camera;
+            std::optional<LightComponent> Light;
+            std::optional<EnvironmentComponent> Environment;
             std::optional<LogicComponent> Logic;
             std::optional<RigidBodyComponent> RigidBody;
             std::optional<ColliderComponent> Collider;

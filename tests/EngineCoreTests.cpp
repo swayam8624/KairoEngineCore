@@ -242,7 +242,7 @@ TEST_CASE("Scene V2 migrates V1 defaults and resolves forward hierarchy referenc
     CHECK_FALSE(legacy.Parent({ 5u }).has_value());
     CHECK(legacy.RigidBody({ 5u }).Motion == RigidBodyMotion::Dynamic);
     CHECK(legacy.Collider({ 5u }).Shape == ColliderShape::Box);
-    CHECK(SerializeScene(legacy, assets).starts_with("kairo-scene 2\n"));
+    CHECK(SerializeScene(legacy, assets).starts_with("kairo-scene 3\n"));
 
     const std::string versionTwo =
         "kairo-scene 2\n"
@@ -608,7 +608,10 @@ TEST_CASE("EngineCore registers inspector-ready reflection metadata", "[KairoEng
 {
     kairo::reflection::ReflectionRegistry registry;
     RegisterEngineCoreReflection(registry);
-    REQUIRE(registry.Size() == 6u);
+    REQUIRE(registry.Size() == 8u);
+    CHECK(registry.Contains("Kairo.Engine.EnvironmentComponent"));
+    CHECK(registry.Contains("Kairo.Engine.LightComponent"));
+    CHECK(registry.Contains("Kairo.Engine.MeshRendererComponent"));
 
     CameraComponent camera;
     registry.Write("Kairo.Engine.CameraComponent", "vertical-fov-radians", &camera,

@@ -44,10 +44,10 @@ SaveProjectDescriptor("Game.kproject", project);
 ## Reflection
 
 `Kairo.EngineCore.Reflection` registers metadata for the scalar fields already
-owned by EngineCore: names, camera projection settings, mesh visibility, and
-opaque physics bindings. The catalog uses `KairoReflection` rather than raw
-ImGui controls, so an editor inspector, document validator, search index, and
-future graph parameter UI share the same stable keys and constraints.
+owned by EngineCore: names, cameras, lights, environments, mesh renderers, and
+physics descriptors. The catalog uses `KairoReflection` rather than raw ImGui
+controls, so an editor inspector, document validator, search index, and future
+graph parameter UI share the same stable keys and constraints.
 
 ```cpp
 import Kairo.EngineCore;
@@ -112,9 +112,11 @@ and deadzone. Supported devices are `key`, `mouse-button`, `gamepad-button`, and
 
 Scene enumeration returns stable entity IDs in ascending creation order so
 hierarchies, serializers, and systems do not depend on unordered storage order.
-Scenes own optional mesh renderer, camera, rigid-body, and collider components.
-Mesh renderer components use persistent typed `KairoAssets` handles rather than
-path strings, so asset moves do not invalidate scene references.
+Scenes own optional mesh renderer, camera, light, environment, rigid-body, and
+collider components. Mesh renderer components use persistent typed
+`KairoAssets` handles rather than path strings, so asset moves do not invalidate
+scene references. Ordered material slots map submesh slot zero to
+`MaterialAsset` and subsequent slots to `AdditionalMaterialSlots`.
 `RenderableEntities()` filters visible meshes deterministically for renderer
 extraction while registry lookup, decoded content, and GPU resources remain
 adapter-owned.
@@ -125,32 +127,60 @@ asset identity API but never owns decoded asset or GPU-resource lifetimes.
 
 ## Scene persistence
 
-`Kairo.EngineCore.SceneSerialization` provides deterministic `kairo-scene 2`
-text serialization with stable entity IDs, quoted names, transforms, mesh
-renderer bindings, cameras, parent relationships, enabled state, 64 layers,
-and bounded sorted tags. Loading validates mesh/material UUIDs and their
-declared types against the project's live `AssetRegistry`. Parse failures carry
-exact one-based line and column positions; file loading replaces the destination
-scene only after the complete document validates, and saving uses a flushed
-same-directory temporary followed by atomic replacement.
+`Kairo.EngineCore.SceneSerialization` provides deterministic `kairo-scene 3`
+text serialization with stable entity IDs, quoted names, transforms, complete
+rendering descriptors, parent relationships, enabled state, 64 layers, and
+bounded sorted tags. Loading validates mesh, material, environment-texture, and
+logic UUIDs with their declared types against the project's live
+`AssetRegistry`. Parse failures carry exact one-based line and column positions;
+file loading replaces the destination scene only after the complete document
+validates, and saving uses a flushed same-directory temporary followed by
+atomic replacement.
 
-V1 remains readable. It migrates in memory to root entities that are enabled,
-on layer zero, with no tags; only an explicit save emits V2. Parent references
-may point forward in the file, but missing entities, self-parenting, and cycles
-are rejected with the relationship's source location. Runtime reparenting keeps
-the local transform unchanged, and destroying a parent destroys its complete
-descendant subtree so no dangling relationships remain.
+V1 and V2 remain readable. V1 migrates in memory to root entities that are
+enabled, on layer zero, with no tags. V1/V2 cameras and mesh renderers receive
+the documented V3 defaults; only an explicit save emits V3. Parent references
+may point forward in the file, but missing entities, self-parenting, cycles, and
+multiple primary cameras are rejected with source locations. Runtime
+reparenting keeps the local transform unchanged, and destroying a parent
+destroys its complete descendant subtree so no dangling relationships remain.
 
 ```text
-kairo-scene 2
+kairo-scene 3
 entity 9 "Hero Cube"
 enabled true
 layer 2
 tag "player"
 transform 0 1 0 0 0 0 1 1 1 1
-mesh-renderer 00000000-0000-4000-8000-000000000101 00000000-0000-4000-8000-000000000102 true
+mesh-renderer 00000000-0000-4000-8000-000000000101 true true true 18446744073709551615 2 00000000-0000-4000-8000-000000000102 00000000-0000-4000-8000-000000000103
 end
 ```
+
+### Rendering descriptors
+
+- Cameras support perspective/orthographic projection, FOV/orthographic size,
+  clipping planes, EV100 exposure compensation, primary selection, clear mode,
+  clear color, and a 64-bit render-layer mask. A scene accepts one primary camera.
+- Directional lights store lux; point and spot lights store candela; rectangular
+  area lights store nits. Linear RGB color is non-negative, local `-Z` is forward,
+  rectangles lie in local `XY`, and shadow policy/bias/layers remain backend-neutral.
+- Environments store background and optional typed HDR texture references,
+  ambient/IBL intensity, linear or exponential fog, EV100 exposure, and tone map.
+  The enabled highest-priority environment wins, with stable entity ID as the tie break.
+- Renderables store visibility, ordered material slots, cast/receive-shadow flags,
+  and a 64-bit render-layer mask. EngineCore validates references but never uploads them.
+
+The complete V3 component records are intentionally line-oriented and diffable:
+
+```text
+camera orthographic 1.04719758 12 0.1 1000 0 true environment 0.02 0.025 0.035 1 18446744073709551615
+light point 1 0.8 0.6 1200 candela 20 0.34906584 0.52359879 1 1 soft 0.001 0.01 18446744073709551615
+environment true 10 0.02 0.03 0.05 00000000-0000-4000-8000-000000000104 0.1 1 exponential 0.4 0.5 0.6 0.01 0 1000 0 aces global
+```
+
+These are authoring contracts, not claims that the current real-time renderer
+already consumes every field. Renderer adapters own GPU objects and must report
+unsupported behavior instead of silently changing authored data.
 
 `RigidBodyComponent` and `ColliderComponent` are persistent authoring
 descriptors, not runtime handles. They store motion type, density, gravity,

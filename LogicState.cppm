@@ -3,6 +3,7 @@ module;
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <limits>
 #include <optional>
 #include <ranges>
 #include <stdexcept>
@@ -128,7 +129,11 @@ export namespace kairo::engine
             for (auto& [name, timer] : m_Timers)
             {
                 timer.RemainingSeconds -= deltaSeconds;
-                if (timer.RemainingSeconds > 0.0) continue;
+                const double boundaryTolerance = 8.0 * std::numeric_limits<double>::epsilon() *
+                    std::max({ 1.0, deltaSeconds, timer.RepeatSeconds,
+                        std::abs(timer.RemainingSeconds) });
+                if (timer.RemainingSeconds > boundaryTolerance) continue;
+                if (timer.RemainingSeconds > 0.0) timer.RemainingSeconds = 0.0;
                 expired.push_back(name);
                 if (timer.RepeatSeconds > 0.0)
                 {

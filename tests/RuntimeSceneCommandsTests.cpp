@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 import Kairo.EngineCore.RuntimeSceneCommands;
+import Kairo.EngineCore.Entity;
 import Kairo.EngineCore.Scene;
 import Kairo.Foundation.Math;
 

@@ -37,10 +37,14 @@ export namespace kairo::engine
         Scene& scene, Entity entity)
     {
         std::vector<ReflectedSceneComponent> result;
-        result.reserve(6u);
+        result.reserve(8u);
         result.push_back({ "Kairo.Engine.NameComponent", &scene.Name(entity) });
         if (scene.HasCamera(entity))
             result.push_back({ "Kairo.Engine.CameraComponent", &scene.Camera(entity) });
+        if (scene.HasEnvironment(entity))
+            result.push_back({ "Kairo.Engine.EnvironmentComponent", &scene.Environment(entity) });
+        if (scene.HasLight(entity))
+            result.push_back({ "Kairo.Engine.LightComponent", &scene.Light(entity) });
         if (scene.HasMeshRenderer(entity))
             result.push_back({ "Kairo.Engine.MeshRendererComponent", &scene.MeshRenderer(entity) });
         if (scene.HasLogic(entity))
@@ -73,6 +77,12 @@ export namespace kairo::engine
         if (object == nullptr) throw std::invalid_argument("Reflected component validation requires a non-null object.");
         if (typeKey == "Kairo.Engine.CameraComponent")
             static_cast<const CameraComponent*>(object)->Validate();
+        else if (typeKey == "Kairo.Engine.EnvironmentComponent")
+            static_cast<const EnvironmentComponent*>(object)->Validate();
+        else if (typeKey == "Kairo.Engine.LightComponent")
+            static_cast<const LightComponent*>(object)->Validate();
+        else if (typeKey == "Kairo.Engine.MeshRendererComponent")
+            static_cast<const MeshRendererComponent*>(object)->Validate();
         else if (typeKey == "Kairo.Engine.LogicComponent")
             static_cast<const LogicComponent*>(object)->Validate();
     }
@@ -109,7 +119,63 @@ export namespace kairo::engine
                 MakeMemberProperty<CameraComponent>({ "far-plane", "Far Plane", "Clipping", "Far clipping distance", PropertyFlags::None,
                     NumericRange{ 0.000001, 10'000'000.0, 1.0 }, 0u }, &CameraComponent::FarPlane),
                 MakeMemberProperty<CameraComponent>({ "primary", "Primary", "General", "Selects this camera as the primary scene camera",
-                    PropertyFlags::None, std::nullopt, 0u }, &CameraComponent::Primary)
+                    PropertyFlags::None, std::nullopt, 0u }, &CameraComponent::Primary),
+                MakeMemberProperty<CameraComponent>({ "orthographic-size", "Orthographic Size", "Lens", "Vertical world-space size of an orthographic view",
+                    PropertyFlags::None, NumericRange{ 0.000001, 1'000'000.0, 0.05 }, 0u }, &CameraComponent::OrthographicSize),
+                MakeMemberProperty<CameraComponent>({ "exposure-ev100", "Exposure EV100", "Exposure", "Camera exposure compensation in stops",
+                    PropertyFlags::None, NumericRange{ -32.0, 32.0, 0.1 }, 0u }, &CameraComponent::ExposureEV100),
+                MakeMemberProperty<CameraComponent>({ "render-layers", "Render Layers", "Culling", "64-bit mask of visible render layers",
+                    PropertyFlags::Advanced, std::nullopt, 0u }, &CameraComponent::RenderLayers)
+            }
+        });
+
+        registry.Register({
+            .Key = "Kairo.Engine.EnvironmentComponent",
+            .DisplayName = "Environment",
+            .Category = "Rendering",
+            .Properties = {
+                MakeMemberProperty<EnvironmentComponent>({ "enabled", "Enabled", "General", "Allows this environment to participate in deterministic priority selection",
+                    PropertyFlags::None, std::nullopt, 0u }, &EnvironmentComponent::Enabled),
+                MakeMemberProperty<EnvironmentComponent>({ "priority", "Priority", "General", "Higher values win global environment selection",
+                    PropertyFlags::None, std::nullopt, 0u }, &EnvironmentComponent::Priority),
+                MakeMemberProperty<EnvironmentComponent>({ "ambient-intensity", "Ambient Intensity", "Lighting", "Non-negative ambient irradiance multiplier",
+                    PropertyFlags::None, NumericRange{ 0.0, 1'000'000.0, 0.01 }, 0u }, &EnvironmentComponent::AmbientIntensity),
+                MakeMemberProperty<EnvironmentComponent>({ "environment-intensity", "Environment Intensity", "Lighting", "Non-negative image-based lighting multiplier",
+                    PropertyFlags::None, NumericRange{ 0.0, 1'000'000.0, 0.01 }, 0u }, &EnvironmentComponent::EnvironmentIntensity),
+                MakeMemberProperty<EnvironmentComponent>({ "fog-density", "Fog Density", "Fog", "Exponential fog density",
+                    PropertyFlags::None, NumericRange{ 0.0, 1'000.0, 0.001 }, 0u }, &EnvironmentComponent::FogDensity),
+                MakeMemberProperty<EnvironmentComponent>({ "fog-near", "Fog Near", "Fog", "Linear fog start distance",
+                    PropertyFlags::None, NumericRange{ 0.0, 10'000'000.0, 0.1 }, 0u }, &EnvironmentComponent::FogNear),
+                MakeMemberProperty<EnvironmentComponent>({ "fog-far", "Fog Far", "Fog", "Linear fog end distance",
+                    PropertyFlags::None, NumericRange{ 0.000001, 10'000'000.0, 1.0 }, 0u }, &EnvironmentComponent::FogFar),
+                MakeMemberProperty<EnvironmentComponent>({ "exposure-ev100", "Exposure EV100", "Exposure", "Global exposure compensation in stops",
+                    PropertyFlags::None, NumericRange{ -32.0, 32.0, 0.1 }, 0u }, &EnvironmentComponent::ExposureEV100)
+            }
+        });
+
+        registry.Register({
+            .Key = "Kairo.Engine.LightComponent",
+            .DisplayName = "Light",
+            .Category = "Rendering",
+            .Properties = {
+                MakeMemberProperty<LightComponent>({ "intensity", "Intensity", "Photometry", "Photometric intensity in the unit required by the selected light type",
+                    PropertyFlags::None, NumericRange{ 0.0, 1'000'000'000.0, 1.0 }, 0u }, &LightComponent::Intensity),
+                MakeMemberProperty<LightComponent>({ "range", "Range", "Shape", "Maximum influence distance for local lights",
+                    PropertyFlags::None, NumericRange{ 0.000001, 10'000'000.0, 0.1 }, 0u }, &LightComponent::Range),
+                MakeMemberProperty<LightComponent>({ "inner-cone-radians", "Inner Cone", "Shape", "Spot-light full-intensity half-angle in radians",
+                    PropertyFlags::None, NumericRange{ 0.0, 1.56979633, 0.001 }, 0u }, &LightComponent::InnerConeRadians),
+                MakeMemberProperty<LightComponent>({ "outer-cone-radians", "Outer Cone", "Shape", "Spot-light cutoff half-angle in radians",
+                    PropertyFlags::None, NumericRange{ 0.000001, 1.56979633, 0.001 }, 0u }, &LightComponent::OuterConeRadians),
+                MakeMemberProperty<LightComponent>({ "area-width", "Area Width", "Shape", "Rectangle width in local-space meters",
+                    PropertyFlags::None, NumericRange{ 0.000001, 1'000'000.0, 0.01 }, 0u }, &LightComponent::AreaWidth),
+                MakeMemberProperty<LightComponent>({ "area-height", "Area Height", "Shape", "Rectangle height in local-space meters",
+                    PropertyFlags::None, NumericRange{ 0.000001, 1'000'000.0, 0.01 }, 0u }, &LightComponent::AreaHeight),
+                MakeMemberProperty<LightComponent>({ "shadow-bias", "Shadow Bias", "Shadows", "Depth bias used by shadow adapters",
+                    PropertyFlags::Advanced, NumericRange{ 0.0, 100.0, 0.0001 }, 0u }, &LightComponent::ShadowBias),
+                MakeMemberProperty<LightComponent>({ "shadow-normal-bias", "Shadow Normal Bias", "Shadows", "Normal offset used by shadow adapters",
+                    PropertyFlags::Advanced, NumericRange{ 0.0, 100.0, 0.0001 }, 0u }, &LightComponent::ShadowNormalBias),
+                MakeMemberProperty<LightComponent>({ "render-layers", "Render Layers", "Culling", "64-bit mask of affected render layers",
+                    PropertyFlags::Advanced, std::nullopt, 0u }, &LightComponent::RenderLayers)
             }
         });
 
@@ -119,7 +185,13 @@ export namespace kairo::engine
             .Category = "Rendering",
             .Properties = {
                 MakeMemberProperty<MeshRendererComponent>({ "visible", "Visible", "General", "Controls render extraction visibility",
-                    PropertyFlags::None, std::nullopt, 0u }, &MeshRendererComponent::Visible)
+                    PropertyFlags::None, std::nullopt, 0u }, &MeshRendererComponent::Visible),
+                MakeMemberProperty<MeshRendererComponent>({ "cast-shadows", "Cast Shadows", "Shadows", "Allows this renderer to contribute to shadow passes",
+                    PropertyFlags::None, std::nullopt, 0u }, &MeshRendererComponent::CastShadows),
+                MakeMemberProperty<MeshRendererComponent>({ "receive-shadows", "Receive Shadows", "Shadows", "Allows this renderer to receive scene shadows",
+                    PropertyFlags::None, std::nullopt, 0u }, &MeshRendererComponent::ReceiveShadows),
+                MakeMemberProperty<MeshRendererComponent>({ "render-layers", "Render Layers", "Culling", "64-bit mask used by cameras and lights",
+                    PropertyFlags::Advanced, std::nullopt, 0u }, &MeshRendererComponent::RenderLayers)
             }
         });
 

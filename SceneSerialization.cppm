@@ -124,6 +124,30 @@ export namespace kairo::engine
             return result;
         }
 
+        [[nodiscard]] inline std::uint64_t ParseUInt64(
+            const Token& token, std::size_t line, std::string_view field)
+        {
+            std::uint64_t result = 0u;
+            const auto [end, error] = std::from_chars(
+                token.Text.data(), token.Text.data() + token.Text.size(), result);
+            if (error != std::errc{} || end != token.Text.data() + token.Text.size())
+                throw SceneFormatError(line, token.Column,
+                    std::string(field) + " must be an unsigned 64-bit integer");
+            return result;
+        }
+
+        [[nodiscard]] inline std::int32_t ParseInt32(
+            const Token& token, std::size_t line, std::string_view field)
+        {
+            std::int32_t result = 0;
+            const auto [end, error] = std::from_chars(
+                token.Text.data(), token.Text.data() + token.Text.size(), result);
+            if (error != std::errc{} || end != token.Text.data() + token.Text.size())
+                throw SceneFormatError(line, token.Column,
+                    std::string(field) + " must be a signed 32-bit integer");
+            return result;
+        }
+
         [[nodiscard]] inline float ParseFloat(const Token& token, std::size_t line, std::string_view field)
         {
             float result = 0.0f;
@@ -138,6 +162,153 @@ export namespace kairo::engine
             if (token.Text == "true") return true;
             if (token.Text == "false") return false;
             throw SceneFormatError(line, token.Column, "boolean value must be true or false");
+        }
+
+        [[nodiscard]] inline CameraProjection ParseCameraProjection(
+            const Token& token, std::size_t line)
+        {
+            if (token.Text == "perspective") return CameraProjection::Perspective;
+            if (token.Text == "orthographic") return CameraProjection::Orthographic;
+            throw SceneFormatError(line, token.Column,
+                "camera projection must be perspective or orthographic");
+        }
+
+        [[nodiscard]] inline std::string_view CameraProjectionName(CameraProjection value)
+        {
+            switch (value)
+            {
+                case CameraProjection::Perspective: return "perspective";
+                case CameraProjection::Orthographic: return "orthographic";
+            }
+            throw std::invalid_argument("Camera projection enum is invalid.");
+        }
+
+        [[nodiscard]] inline CameraClearMode ParseCameraClearMode(
+            const Token& token, std::size_t line)
+        {
+            if (token.Text == "environment") return CameraClearMode::Environment;
+            if (token.Text == "solid") return CameraClearMode::SolidColor;
+            if (token.Text == "depth") return CameraClearMode::DepthOnly;
+            if (token.Text == "nothing") return CameraClearMode::Nothing;
+            throw SceneFormatError(line, token.Column,
+                "camera clear mode must be environment, solid, depth, or nothing");
+        }
+
+        [[nodiscard]] inline std::string_view CameraClearModeName(CameraClearMode value)
+        {
+            switch (value)
+            {
+                case CameraClearMode::Environment: return "environment";
+                case CameraClearMode::SolidColor: return "solid";
+                case CameraClearMode::DepthOnly: return "depth";
+                case CameraClearMode::Nothing: return "nothing";
+            }
+            throw std::invalid_argument("Camera clear mode enum is invalid.");
+        }
+
+        [[nodiscard]] inline LightType ParseLightType(const Token& token, std::size_t line)
+        {
+            if (token.Text == "directional") return LightType::Directional;
+            if (token.Text == "point") return LightType::Point;
+            if (token.Text == "spot") return LightType::Spot;
+            if (token.Text == "rectangle") return LightType::RectangleArea;
+            throw SceneFormatError(line, token.Column,
+                "light type must be directional, point, spot, or rectangle");
+        }
+
+        [[nodiscard]] inline std::string_view LightTypeName(LightType value)
+        {
+            switch (value)
+            {
+                case LightType::Directional: return "directional";
+                case LightType::Point: return "point";
+                case LightType::Spot: return "spot";
+                case LightType::RectangleArea: return "rectangle";
+            }
+            throw std::invalid_argument("Light type enum is invalid.");
+        }
+
+        [[nodiscard]] inline PhotometricUnit ParsePhotometricUnit(
+            const Token& token, std::size_t line)
+        {
+            if (token.Text == "lux") return PhotometricUnit::Lux;
+            if (token.Text == "candela") return PhotometricUnit::Candela;
+            if (token.Text == "nit") return PhotometricUnit::Nit;
+            throw SceneFormatError(line, token.Column,
+                "photometric unit must be lux, candela, or nit");
+        }
+
+        [[nodiscard]] inline std::string_view PhotometricUnitName(PhotometricUnit value)
+        {
+            switch (value)
+            {
+                case PhotometricUnit::Lux: return "lux";
+                case PhotometricUnit::Candela: return "candela";
+                case PhotometricUnit::Nit: return "nit";
+            }
+            throw std::invalid_argument("Photometric unit enum is invalid.");
+        }
+
+        [[nodiscard]] inline ShadowPolicy ParseShadowPolicy(
+            const Token& token, std::size_t line)
+        {
+            if (token.Text == "disabled") return ShadowPolicy::Disabled;
+            if (token.Text == "hard") return ShadowPolicy::Hard;
+            if (token.Text == "soft") return ShadowPolicy::Soft;
+            throw SceneFormatError(line, token.Column,
+                "shadow policy must be disabled, hard, or soft");
+        }
+
+        [[nodiscard]] inline std::string_view ShadowPolicyName(ShadowPolicy value)
+        {
+            switch (value)
+            {
+                case ShadowPolicy::Disabled: return "disabled";
+                case ShadowPolicy::Hard: return "hard";
+                case ShadowPolicy::Soft: return "soft";
+            }
+            throw std::invalid_argument("Shadow policy enum is invalid.");
+        }
+
+        [[nodiscard]] inline FogMode ParseFogMode(const Token& token, std::size_t line)
+        {
+            if (token.Text == "disabled") return FogMode::Disabled;
+            if (token.Text == "linear") return FogMode::Linear;
+            if (token.Text == "exponential") return FogMode::Exponential;
+            throw SceneFormatError(line, token.Column,
+                "fog mode must be disabled, linear, or exponential");
+        }
+
+        [[nodiscard]] inline std::string_view FogModeName(FogMode value)
+        {
+            switch (value)
+            {
+                case FogMode::Disabled: return "disabled";
+                case FogMode::Linear: return "linear";
+                case FogMode::Exponential: return "exponential";
+            }
+            throw std::invalid_argument("Fog mode enum is invalid.");
+        }
+
+        [[nodiscard]] inline ToneMapping ParseToneMapping(
+            const Token& token, std::size_t line)
+        {
+            if (token.Text == "none") return ToneMapping::None;
+            if (token.Text == "reinhard") return ToneMapping::Reinhard;
+            if (token.Text == "aces") return ToneMapping::ACES;
+            throw SceneFormatError(line, token.Column,
+                "tone mapping must be none, reinhard, or aces");
+        }
+
+        [[nodiscard]] inline std::string_view ToneMappingName(ToneMapping value)
+        {
+            switch (value)
+            {
+                case ToneMapping::None: return "none";
+                case ToneMapping::Reinhard: return "reinhard";
+                case ToneMapping::ACES: return "aces";
+            }
+            throw std::invalid_argument("Tone mapping enum is invalid.");
         }
 
         [[nodiscard]] inline RigidBodyMotion ParseMotion(const Token& token, std::size_t line)
@@ -214,7 +385,7 @@ export namespace kairo::engine
         }
     }
 
-    /// Input: a complete UTF-8 `kairo-scene 1|2` document and the project asset registry.
+    /// Input: a complete UTF-8 `kairo-scene 1|2|3` document and the project asset registry.
     /// Output: a new scene with restored IDs and validated typed asset references.
     /// Task: deserialize authored state with deterministic behavior and exact
     /// line/column diagnostics. Typed physics descriptors remain independent
@@ -233,12 +404,15 @@ export namespace kairo::engine
             std::size_t Column = 1u;
         };
         std::vector<PendingParent> pendingParents;
+        std::optional<Entity> primaryCamera;
         std::optional<Entity> current;
         bool headerSeen = false;
         std::uint32_t version = 0u;
         bool transformSeen = false;
         bool meshSeen = false;
         bool cameraSeen = false;
+        bool lightSeen = false;
+        bool environmentSeen = false;
         bool logicSeen = false;
         bool rigidBodySeen = false;
         bool colliderSeen = false;
@@ -260,6 +434,7 @@ export namespace kairo::engine
                 if (tokens[0].Text != "kairo-scene") throw SceneFormatError(lineNumber, tokens[0].Column, "expected kairo-scene header");
                 if (tokens[1].Text == "1") version = 1u;
                 else if (tokens[1].Text == "2") version = 2u;
+                else if (tokens[1].Text == "3") version = 3u;
                 else throw SceneFormatError(lineNumber, tokens[1].Column, "unsupported scene version");
                 headerSeen = true;
                 continue;
@@ -280,6 +455,8 @@ export namespace kairo::engine
                 transformSeen = false;
                 meshSeen = false;
                 cameraSeen = false;
+                lightSeen = false;
+                environmentSeen = false;
                 logicSeen = false;
                 rigidBodySeen = false;
                 colliderSeen = false;
@@ -367,29 +544,164 @@ export namespace kairo::engine
             else if (tokens[0].Text == "mesh-renderer")
             {
                 if (meshSeen) throw SceneFormatError(lineNumber, tokens[0].Column, "duplicate mesh renderer component");
-                RequireCount(tokens, 4u, lineNumber, "mesh-renderer");
-                const kairo::assets::MeshAssetHandle mesh{ ParseAssetID(tokens[1], lineNumber) };
-                const kairo::assets::MaterialAssetHandle material{ ParseAssetID(tokens[2], lineNumber) };
-                try { (void)assets.Resolve(mesh); }
-                catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
-                try { (void)assets.Resolve(material); }
-                catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[2].Column, error.what()); }
-                scene.SetMeshRenderer(*current, { mesh, material, ParseBool(tokens[3], lineNumber) });
+                if (version < 3u)
+                {
+                    RequireCount(tokens, 4u, lineNumber, "mesh-renderer");
+                    const kairo::assets::MeshAssetHandle mesh{ ParseAssetID(tokens[1], lineNumber) };
+                    const kairo::assets::MaterialAssetHandle material{ ParseAssetID(tokens[2], lineNumber) };
+                    try { (void)assets.Resolve(mesh); }
+                    catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
+                    try { (void)assets.Resolve(material); }
+                    catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[2].Column, error.what()); }
+                    scene.SetMeshRenderer(*current, { mesh, material, ParseBool(tokens[3], lineNumber) });
+                }
+                else
+                {
+                    if (tokens.size() < 8u)
+                        throw SceneFormatError(lineNumber, 1u,
+                            "mesh-renderer expects mesh, visibility/shadow/layer settings, count, and materials");
+                    const std::uint32_t materialCount = ParseUInt32(
+                        tokens[6], lineNumber, "material slot count");
+                    if (materialCount == 0u || materialCount > MaximumMaterialSlots)
+                        throw SceneFormatError(lineNumber, tokens[6].Column,
+                            "material slot count must be between 1 and 256");
+                    RequireCount(tokens, 7u + materialCount, lineNumber, "mesh-renderer");
+                    MeshRendererComponent component;
+                    component.MeshAsset = { ParseAssetID(tokens[1], lineNumber) };
+                    component.Visible = ParseBool(tokens[2], lineNumber);
+                    component.CastShadows = ParseBool(tokens[3], lineNumber);
+                    component.ReceiveShadows = ParseBool(tokens[4], lineNumber);
+                    component.RenderLayers = ParseUInt64(tokens[5], lineNumber, "render layer mask");
+                    component.MaterialAsset = { ParseAssetID(tokens[7], lineNumber) };
+                    component.AdditionalMaterialSlots.reserve(materialCount - 1u);
+                    for (std::uint32_t slot = 1u; slot < materialCount; ++slot)
+                        component.AdditionalMaterialSlots.push_back({
+                            ParseAssetID(tokens[7u + slot], lineNumber) });
+                    try
+                    {
+                        (void)assets.Resolve(component.MeshAsset);
+                        for (std::size_t slot = 0u; slot < component.MaterialSlotCount(); ++slot)
+                            (void)assets.Resolve(component.MaterialForSlot(slot));
+                        scene.SetMeshRenderer(*current, std::move(component));
+                    }
+                    catch (const std::exception& error)
+                    {
+                        throw SceneFormatError(lineNumber, tokens[1].Column, error.what());
+                    }
+                }
                 meshSeen = true;
             }
             else if (tokens[0].Text == "camera")
             {
                 if (cameraSeen) throw SceneFormatError(lineNumber, tokens[0].Column, "duplicate camera component");
-                RequireCount(tokens, 5u, lineNumber, "camera");
-                CameraComponent camera{
-                    ParseFloat(tokens[1], lineNumber, "vertical FOV"),
-                    ParseFloat(tokens[2], lineNumber, "near plane"),
-                    ParseFloat(tokens[3], lineNumber, "far plane"),
-                    ParseBool(tokens[4], lineNumber)
-                };
+                CameraComponent camera;
+                if (version < 3u)
+                {
+                    RequireCount(tokens, 5u, lineNumber, "camera");
+                    camera.VerticalFovRadians = ParseFloat(tokens[1], lineNumber, "vertical FOV");
+                    camera.NearPlane = ParseFloat(tokens[2], lineNumber, "near plane");
+                    camera.FarPlane = ParseFloat(tokens[3], lineNumber, "far plane");
+                    camera.Primary = ParseBool(tokens[4], lineNumber);
+                }
+                else
+                {
+                    RequireCount(tokens, 14u, lineNumber, "camera");
+                    camera.Projection = ParseCameraProjection(tokens[1], lineNumber);
+                    camera.VerticalFovRadians = ParseFloat(tokens[2], lineNumber, "vertical FOV");
+                    camera.OrthographicSize = ParseFloat(tokens[3], lineNumber, "orthographic size");
+                    camera.NearPlane = ParseFloat(tokens[4], lineNumber, "near plane");
+                    camera.FarPlane = ParseFloat(tokens[5], lineNumber, "far plane");
+                    camera.ExposureEV100 = ParseFloat(tokens[6], lineNumber, "camera exposure");
+                    camera.Primary = ParseBool(tokens[7], lineNumber);
+                    camera.ClearMode = ParseCameraClearMode(tokens[8], lineNumber);
+                    camera.ClearColor = {
+                        ParseFloat(tokens[9], lineNumber, "clear color red"),
+                        ParseFloat(tokens[10], lineNumber, "clear color green"),
+                        ParseFloat(tokens[11], lineNumber, "clear color blue"),
+                        ParseFloat(tokens[12], lineNumber, "clear color alpha") };
+                    camera.RenderLayers = ParseUInt64(tokens[13], lineNumber, "camera render layer mask");
+                }
+                if (camera.Primary)
+                {
+                    if (primaryCamera.has_value())
+                        throw SceneFormatError(lineNumber, tokens[version < 3u ? 4u : 7u].Column,
+                            "scene contains more than one primary camera");
+                    primaryCamera = *current;
+                }
                 try { scene.SetCamera(*current, camera); }
                 catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
                 cameraSeen = true;
+            }
+            else if (tokens[0].Text == "light")
+            {
+                if (version < 3u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "light requires kairo-scene 3");
+                if (lightSeen) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "duplicate light component");
+                RequireCount(tokens, 16u, lineNumber, "light");
+                LightComponent light;
+                light.Type = ParseLightType(tokens[1], lineNumber);
+                light.Color = {
+                    ParseFloat(tokens[2], lineNumber, "light color red"),
+                    ParseFloat(tokens[3], lineNumber, "light color green"),
+                    ParseFloat(tokens[4], lineNumber, "light color blue") };
+                light.Intensity = ParseFloat(tokens[5], lineNumber, "light intensity");
+                light.Unit = ParsePhotometricUnit(tokens[6], lineNumber);
+                light.Range = ParseFloat(tokens[7], lineNumber, "light range");
+                light.InnerConeRadians = ParseFloat(tokens[8], lineNumber, "inner cone");
+                light.OuterConeRadians = ParseFloat(tokens[9], lineNumber, "outer cone");
+                light.AreaWidth = ParseFloat(tokens[10], lineNumber, "area width");
+                light.AreaHeight = ParseFloat(tokens[11], lineNumber, "area height");
+                light.Shadows = ParseShadowPolicy(tokens[12], lineNumber);
+                light.ShadowBias = ParseFloat(tokens[13], lineNumber, "shadow bias");
+                light.ShadowNormalBias = ParseFloat(tokens[14], lineNumber, "shadow normal bias");
+                light.RenderLayers = ParseUInt64(tokens[15], lineNumber, "light render layer mask");
+                try { scene.SetLight(*current, light); }
+                catch (const std::exception& error)
+                { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
+                lightSeen = true;
+            }
+            else if (tokens[0].Text == "environment")
+            {
+                if (version < 3u) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "environment requires kairo-scene 3");
+                if (environmentSeen) throw SceneFormatError(lineNumber, tokens[0].Column,
+                    "duplicate environment component");
+                RequireCount(tokens, 19u, lineNumber, "environment");
+                EnvironmentComponent environment;
+                environment.Enabled = ParseBool(tokens[1], lineNumber);
+                environment.Priority = ParseInt32(tokens[2], lineNumber, "environment priority");
+                environment.BackgroundColor = {
+                    ParseFloat(tokens[3], lineNumber, "background red"),
+                    ParseFloat(tokens[4], lineNumber, "background green"),
+                    ParseFloat(tokens[5], lineNumber, "background blue") };
+                if (tokens[6].Text != "none")
+                {
+                    environment.EnvironmentTexture = kairo::assets::TextureAssetHandle{
+                        ParseAssetID(tokens[6], lineNumber) };
+                    try { (void)assets.Resolve(*environment.EnvironmentTexture); }
+                    catch (const std::exception& error)
+                    { throw SceneFormatError(lineNumber, tokens[6].Column, error.what()); }
+                }
+                environment.AmbientIntensity = ParseFloat(tokens[7], lineNumber, "ambient intensity");
+                environment.EnvironmentIntensity = ParseFloat(tokens[8], lineNumber, "environment intensity");
+                environment.Fog = ParseFogMode(tokens[9], lineNumber);
+                environment.FogColor = {
+                    ParseFloat(tokens[10], lineNumber, "fog red"),
+                    ParseFloat(tokens[11], lineNumber, "fog green"),
+                    ParseFloat(tokens[12], lineNumber, "fog blue") };
+                environment.FogDensity = ParseFloat(tokens[13], lineNumber, "fog density");
+                environment.FogNear = ParseFloat(tokens[14], lineNumber, "fog near");
+                environment.FogFar = ParseFloat(tokens[15], lineNumber, "fog far");
+                environment.ExposureEV100 = ParseFloat(tokens[16], lineNumber, "environment exposure");
+                environment.ToneMap = ParseToneMapping(tokens[17], lineNumber);
+                if (tokens[18].Text != "global")
+                    throw SceneFormatError(lineNumber, tokens[18].Column,
+                        "environment scope must be global in scene version 3");
+                try { scene.SetEnvironment(*current, std::move(environment)); }
+                catch (const std::exception& error)
+                { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
+                environmentSeen = true;
             }
             else if (tokens[0].Text == "logic")
             {
@@ -513,7 +825,7 @@ export namespace kairo::engine
         return scene;
     }
 
-    /// Output: stable ID-ordered and diff-friendly `kairo-scene 2` text.
+    /// Output: stable ID-ordered and diff-friendly `kairo-scene 3` text.
     /// Preconditions: transforms and public components must remain valid, and
     /// every mesh/material reference must resolve with its declared asset type.
     [[nodiscard]] inline std::string SerializeScene(const Scene& scene, const kairo::assets::AssetRegistry& assets)
@@ -521,7 +833,8 @@ export namespace kairo::engine
         using namespace scene_format_detail;
         std::ostringstream output;
         output << std::setprecision(std::numeric_limits<float>::max_digits10);
-        output << "kairo-scene 2\n";
+        output << "kairo-scene 3\n";
+        (void)scene.PrimaryCamera();
         for (const Entity entity : scene.Entities())
         {
             const auto& transform = scene.Transform(entity).Local;
@@ -543,17 +856,64 @@ export namespace kairo::engine
             if (scene.HasMeshRenderer(entity))
             {
                 const auto& mesh = scene.MeshRenderer(entity);
+                mesh.Validate();
                 (void)assets.Resolve(mesh.MeshAsset);
-                (void)assets.Resolve(mesh.MaterialAsset);
+                for (std::size_t slot = 0u; slot < mesh.MaterialSlotCount(); ++slot)
+                    (void)assets.Resolve(mesh.MaterialForSlot(slot));
                 output << "mesh-renderer " << mesh.MeshAsset.ID.ToString() << ' '
-                    << mesh.MaterialAsset.ID.ToString() << ' ' << (mesh.Visible ? "true" : "false") << '\n';
+                    << (mesh.Visible ? "true" : "false") << ' '
+                    << (mesh.CastShadows ? "true" : "false") << ' '
+                    << (mesh.ReceiveShadows ? "true" : "false") << ' '
+                    << mesh.RenderLayers << ' ' << mesh.MaterialSlotCount();
+                for (std::size_t slot = 0u; slot < mesh.MaterialSlotCount(); ++slot)
+                    output << ' ' << mesh.MaterialForSlot(slot).ID.ToString();
+                output << '\n';
             }
             if (scene.HasCamera(entity))
             {
                 const auto& camera = scene.Camera(entity);
                 camera.Validate();
-                output << "camera " << camera.VerticalFovRadians << ' ' << camera.NearPlane << ' '
-                    << camera.FarPlane << ' ' << (camera.Primary ? "true" : "false") << '\n';
+                output << "camera " << CameraProjectionName(camera.Projection) << ' '
+                    << camera.VerticalFovRadians << ' ' << camera.OrthographicSize << ' '
+                    << camera.NearPlane << ' ' << camera.FarPlane << ' '
+                    << camera.ExposureEV100 << ' ' << (camera.Primary ? "true" : "false") << ' '
+                    << CameraClearModeName(camera.ClearMode) << ' '
+                    << camera.ClearColor.x << ' ' << camera.ClearColor.y << ' '
+                    << camera.ClearColor.z << ' ' << camera.ClearColor.w << ' '
+                    << camera.RenderLayers << '\n';
+            }
+            if (scene.HasLight(entity))
+            {
+                const auto& light = scene.Light(entity);
+                light.Validate();
+                output << "light " << LightTypeName(light.Type) << ' '
+                    << light.Color.x << ' ' << light.Color.y << ' ' << light.Color.z << ' '
+                    << light.Intensity << ' ' << PhotometricUnitName(light.Unit) << ' '
+                    << light.Range << ' ' << light.InnerConeRadians << ' '
+                    << light.OuterConeRadians << ' ' << light.AreaWidth << ' '
+                    << light.AreaHeight << ' ' << ShadowPolicyName(light.Shadows) << ' '
+                    << light.ShadowBias << ' ' << light.ShadowNormalBias << ' '
+                    << light.RenderLayers << '\n';
+            }
+            if (scene.HasEnvironment(entity))
+            {
+                const auto& environment = scene.Environment(entity);
+                environment.Validate();
+                if (environment.EnvironmentTexture.has_value())
+                    (void)assets.Resolve(*environment.EnvironmentTexture);
+                output << "environment " << (environment.Enabled ? "true" : "false") << ' '
+                    << environment.Priority << ' ' << environment.BackgroundColor.x << ' '
+                    << environment.BackgroundColor.y << ' ' << environment.BackgroundColor.z << ' ';
+                if (environment.EnvironmentTexture.has_value())
+                    output << environment.EnvironmentTexture->ID.ToString();
+                else output << "none";
+                output << ' ' << environment.AmbientIntensity << ' '
+                    << environment.EnvironmentIntensity << ' ' << FogModeName(environment.Fog) << ' '
+                    << environment.FogColor.x << ' ' << environment.FogColor.y << ' '
+                    << environment.FogColor.z << ' ' << environment.FogDensity << ' '
+                    << environment.FogNear << ' ' << environment.FogFar << ' '
+                    << environment.ExposureEV100 << ' ' << ToneMappingName(environment.ToneMap)
+                    << " global\n";
             }
             if (scene.HasLogic(entity))
             {
