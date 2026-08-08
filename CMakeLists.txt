@@ -7,9 +7,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_TOP_LEVEL})
 
 # Immutable revisions used only outside a local workspace checkout. They track
-# the component commits validated by the KairoGameEngine superbuild.
+# merged component commits validated by the KairoGameEngine superbuild.
 set(KAIRO_ENGINE_CORE_MATH_REVISION e12778734a8e8ffe060255a9c03683ad6c4b1a92)
-set(KAIRO_ENGINE_CORE_ASSETS_REVISION a50d801796b69f4ee98f43ecfea0fd6cdd66de85)
+set(KAIRO_ENGINE_CORE_ASSETS_REVISION 32f9b516298d325730f8551a8ca3451f2009cd2e)
 set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 7aaa24a4767433ad8911e0accbb2a480e607ded8)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -67,7 +67,9 @@ endif()
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
     TextValidation.cppm TextFormat.cppm Entity.cppm Components.cppm RuntimeComponents.cppm ProjectDescriptor.cppm
-    Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm RuntimeWorld.cppm CoreReflection.cppm Event.cppm Time.cppm Input.cppm InputMap.cppm
+    Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm RuntimeWorld.cppm
+    NativeGameplay.cppm ProductionSystems.cppm
+    CoreReflection.cppm Event.cppm Time.cppm Input.cppm InputMap.cppm
     LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm GameplayVM.cppm Layer.cppm
     Platform.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoReflection KairoAssets)
@@ -84,6 +86,8 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/DeterministicBytecodeTests.cpp
         tests/LogicStateTests.cpp
         tests/RuntimeSceneCommandsTests.cpp
+        tests/NativeGameplayTests.cpp
+        tests/ProductionSystemsTests.cpp
         tests/PlatformTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
     add_executable(KairoEngineCorePhase3Tests tests/Phase3RuntimeTests.cpp)
