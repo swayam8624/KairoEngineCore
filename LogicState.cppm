@@ -33,14 +33,20 @@ export namespace kairo::engine
         friend bool operator==(const LogicStateEntry& left, const LogicStateEntry& right)
         {
             if (left.Name != right.Name || left.Value.index() != right.Value.index()) return false;
-            return std::visit([](const auto& a, const auto& b) -> bool {
-                using Left = std::decay_t<decltype(a)>;
-                using Right = std::decay_t<decltype(b)>;
-                if constexpr (!std::is_same_v<Left, Right>) return false;
-                else if constexpr (std::is_same_v<Left, kairo::foundation::math::Vec3d>)
+            switch (left.Value.index())
+            {
+                case 0u: return std::get<bool>(left.Value) == std::get<bool>(right.Value);
+                case 1u: return std::get<double>(left.Value) == std::get<double>(right.Value);
+                case 2u:
+                {
+                    const auto& a = std::get<kairo::foundation::math::Vec3d>(left.Value);
+                    const auto& b = std::get<kairo::foundation::math::Vec3d>(right.Value);
                     return a.x == b.x && a.y == b.y && a.z == b.z;
-                else return a == b;
-            }, left.Value, right.Value);
+                }
+                case 3u: return std::get<Entity>(left.Value).Value == std::get<Entity>(right.Value).Value;
+                case 4u: return std::get<std::string>(left.Value) == std::get<std::string>(right.Value);
+                default: return false;
+            }
         }
     };
 
