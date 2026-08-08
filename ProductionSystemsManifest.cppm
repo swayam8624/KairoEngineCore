@@ -145,10 +145,6 @@ export namespace kairo::engine
             if (error != std::errc{} || end != token.Text.data() + token.Text.size())
                 throw std::invalid_argument("Production manifest line " + std::to_string(line) +
                     " has invalid " + std::string(field) + ".");
-            stream >> std::ws;
-            if (!stream.eof())
-                throw std::invalid_argument("Production manifest line " + std::to_string(line) +
-                    " has invalid " + std::string(field) + ".");
             return value;
         }
 
