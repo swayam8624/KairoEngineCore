@@ -7,6 +7,7 @@ module;
 #include <cstdint>
 #include <filesystem>
 #include <iterator>
+#include <locale>
 #include <optional>
 #include <sstream>
 #include <stdexcept>
@@ -247,10 +248,14 @@ export namespace kairo::engine
         }
         [[nodiscard]] inline float ParseFloat(const FormatToken& token)
         {
+            std::istringstream stream(std::string(token.Text));
+            stream.imbue(std::locale::classic());
             float value = 0.0f;
-            const auto [end, error] = std::from_chars(token.Text.data(),
-                token.Text.data() + token.Text.size(), value, std::chars_format::general);
-            if (error != std::errc{} || end != token.Text.data() + token.Text.size() || !std::isfinite(value))
+            stream >> value;
+            if (!stream || !std::isfinite(value))
+                throw std::invalid_argument("expected a finite decimal number");
+            stream >> std::ws;
+            if (!stream.eof())
                 throw std::invalid_argument("expected a finite decimal number");
             return value;
         }
