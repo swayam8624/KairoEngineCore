@@ -9,7 +9,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 # Immutable revisions used only outside a local workspace checkout. They track
 # merged component commits validated by the KairoGameEngine superbuild.
 set(KAIRO_ENGINE_CORE_MATH_REVISION e12778734a8e8ffe060255a9c03683ad6c4b1a92)
-set(KAIRO_ENGINE_CORE_ASSETS_REVISION agent/phases8-11-authoring-completion)
+set(KAIRO_ENGINE_CORE_ASSETS_REVISION 1db4c25ecc4aeff7b6fc491c5197fdecf7e790bb)
 set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 7aaa24a4767433ad8911e0accbb2a480e607ded8)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -58,8 +58,7 @@ if(NOT TARGET KairoAssets)
         include(FetchContent)
         FetchContent_Declare(KairoAssets
             GIT_REPOSITORY https://github.com/swayam8624/KairoAssets.git
-            GIT_TAG ${KAIRO_ENGINE_CORE_ASSETS_REVISION}
-            GIT_SHALLOW TRUE)
+            GIT_TAG ${KAIRO_ENGINE_CORE_ASSETS_REVISION})
         FetchContent_MakeAvailable(KairoAssets)
     endif()
 endif()
