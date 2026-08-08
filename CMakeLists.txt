@@ -68,7 +68,7 @@ add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
     TextValidation.cppm TextFormat.cppm ProjectDescriptor.cppm Entity.cppm Components.cppm
     RuntimeComponents.cppm Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm
-    RuntimeWorld.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm
+    RuntimeWorld.cppm NativeGameplay.cppm ProductionSystems.cppm CoreReflection.cppm Time.cppm Event.cppm Input.cppm InputMap.cppm
     LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm GameplayVM.cppm Layer.cppm
     Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoAssets KairoReflection)
@@ -82,7 +82,9 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/DeterministicBytecodeTests.cpp
         tests/LogicStateTests.cpp
         tests/RenderingComponentTests.cpp
-        tests/RuntimeSceneCommandsTests.cpp)
+        tests/RuntimeSceneCommandsTests.cpp
+        tests/NativeGameplayTests.cpp
+        tests/ProductionSystemsTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
     add_executable(KairoEngineCorePhase3Tests tests/Phase3RuntimeTests.cpp)
     target_link_libraries(KairoEngineCorePhase3Tests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
