@@ -6,4 +6,4 @@ Phase 12 keeps animation, terrain/foliage, particles, cloth, fluids, and world s
 
 The current terrain/foliage, particle, cloth, fluid, streaming and animation implementations remain modular Core kernels. More specialized GPU or large-world backends can replace individual kernels behind these persisted descriptors and budgets without changing project configuration.
 
-The Phase 7/12 acceptance matrix compiles the complete persisted-manifest/runtime surface on Ubuntu Clang, macOS LLVM/libc++, and Windows MSVC, including direct module-import hygiene and portable decimal-text parsing.
+The Phase 7/12 acceptance matrix compiles the complete persisted-manifest/runtime surface on Ubuntu Clang, macOS LLVM/libc++, and Windows MSVC, including direct module-import hygiene and portable decimal-text parsing. Integer and floating persisted-value parsers are intentionally separate so the libc++ portability path never leaks stream handling into integral `from_chars` parsing.
