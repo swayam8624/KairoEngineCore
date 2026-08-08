@@ -42,7 +42,7 @@ export namespace kairo::engine::platform
         return value==nullptr?std::nullopt:std::optional<std::string>{value};
     #endif
     }
-    inline void ReplaceFile(const std::filesystem::path& source,const std::filesystem::path& destination)
+    inline void AtomicReplaceFile(const std::filesystem::path& source,const std::filesystem::path& destination)
     {
     #if defined(_WIN32)
         if(!::MoveFileExW(source.c_str(),destination.c_str(),MOVEFILE_REPLACE_EXISTING|MOVEFILE_WRITE_THROUGH))
