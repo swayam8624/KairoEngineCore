@@ -86,7 +86,7 @@ export namespace kairo::engine
             double value = 0.0;
             stream >> value;
             stream >> std::ws;
-            if (!stream.eof() || !std::isfinite(value))
+            if (!stream || !stream.eof() || !std::isfinite(value))
                 throw NativeGameplayManifestFormatError(line, token.Column,
                     std::string(field) + " must be a finite decimal number");
             return value;
@@ -163,7 +163,7 @@ export namespace kairo::engine
         std::set<std::pair<std::uint64_t, std::string>> unique;
         for (const auto& attachment : manifest.Attachments)
         {
-            if (!attachment.Target.IsValid() || !scene.Contains(attachment.Target))
+            if (!attachment.Target || !scene.Contains(attachment.Target))
                 throw std::invalid_argument("Native gameplay attachment targets a missing scene entity.");
             if (attachment.TypeName.empty())
                 throw std::invalid_argument("Native gameplay attachment type name cannot be empty.");
@@ -202,7 +202,7 @@ export namespace kairo::engine
         std::string output = "kairo-native-gameplay 1\n";
         for (const auto* attachment : ordered)
         {
-            if (!attachment->Target.IsValid() || attachment->TypeName.empty())
+            if (!attachment->Target || attachment->TypeName.empty())
                 throw std::invalid_argument("Native gameplay attachment is invalid.");
             if (attachment->Properties.size() > MaximumPropertiesPerAttachment)
                 throw std::length_error("Native gameplay attachment exceeds 1024 property overrides.");
@@ -258,10 +258,13 @@ export namespace kairo::engine
                 if (manifest.Attachments.size() >= MaximumAttachments)
                     throw std::length_error("Native gameplay manifest exceeds 100,000 attachments.");
                 NativeGameplayAttachment attachment;
-                attachment.Target = Entity{ ParseUInt64(tokens[1], lineNumber, "entity") };
+                const auto entityValue = ParseUInt64(tokens[1], lineNumber, "entity");
+                if (entityValue > std::numeric_limits<std::uint32_t>::max())
+                    throw NativeGameplayManifestFormatError(lineNumber, tokens[1].Column, "entity exceeds 32-bit scene identity range");
+                attachment.Target = Entity{ static_cast<std::uint32_t>(entityValue) };
                 attachment.TypeName = tokens[2].Text;
                 attachment.Enabled = ParseBool(tokens[3], lineNumber);
-                if (!attachment.Target.IsValid() || attachment.TypeName.empty())
+                if (!attachment.Target || attachment.TypeName.empty())
                     throw NativeGameplayManifestFormatError(lineNumber, tokens[1].Column,
                         "behaviour entity and type name must be valid");
                 current = std::move(attachment);
@@ -308,7 +311,10 @@ export namespace kairo::engine
                 else if (type == "entity")
                 {
                     RequireCount(tokens, 4u, lineNumber, tokens[0].Text);
-                    value = Entity{ ParseUInt64(tokens[3], lineNumber, "entity property") };
+                    const auto entityValue = ParseUInt64(tokens[3], lineNumber, "entity property");
+                    if (entityValue > std::numeric_limits<std::uint32_t>::max())
+                        throw NativeGameplayManifestFormatError(lineNumber, tokens[3].Column, "entity property exceeds 32-bit scene identity range");
+                    value = Entity{ static_cast<std::uint32_t>(entityValue) };
                 }
                 else
                 {
