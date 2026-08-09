@@ -41,6 +41,11 @@ project.StartupScene = "Scenes/Title.kscene";
 SaveProjectDescriptor("Game.kproject", project);
 ```
 
+Format 2 descriptors may persist `graphics-backend "auto|vulkan|metal|d3d12|opengl"`.
+EngineCore validates and stores this portable policy without importing a graphics
+API. Editor and Player apply an explicit `--renderer` command-line override first,
+then fall back to the authored project value.
+
 ## Reflection
 
 `Kairo.EngineCore.Reflection` registers metadata for the scalar fields already

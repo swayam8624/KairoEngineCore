@@ -55,6 +55,10 @@ export namespace kairo::engine
         std::string EngineVersion = "0.1.0";
         std::filesystem::path InputMap = "Config/Input.kinput";
         std::string RenderingProfile = "desktop";
+        /// Stable renderer policy interpreted by host applications. EngineCore
+        /// stores the portable spelling but deliberately imports no graphics
+        /// API or KairoRenderer module.
+        std::string GraphicsBackend = "auto";
         std::vector<std::string> EnabledPlugins;
         std::vector<ProjectBuildProfile> BuildProfiles{
             { "Development", ProjectBuildKind::Development, "Build/Development" },
@@ -134,6 +138,14 @@ export namespace kairo::engine
             throw std::invalid_argument("Input map path must be distinct from the asset manifest and startup scene.");
         ValidateSetting(descriptor.EngineVersion, "Engine version");
         ValidateSetting(descriptor.RenderingProfile, "Rendering profile");
+        ValidateSetting(descriptor.GraphicsBackend, "Graphics backend");
+        if (descriptor.GraphicsBackend != "auto" &&
+            descriptor.GraphicsBackend != "vulkan" &&
+            descriptor.GraphicsBackend != "metal" &&
+            descriptor.GraphicsBackend != "d3d12" &&
+            descriptor.GraphicsBackend != "opengl")
+            throw std::invalid_argument(
+                "Graphics backend must be auto, vulkan, metal, d3d12, or opengl.");
         if (descriptor.BuildProfiles.empty()) throw std::invalid_argument("Project requires at least one build profile.");
         std::set<std::string> profileNames;
         for (const auto& profile : descriptor.BuildProfiles)
@@ -168,6 +180,7 @@ export namespace kairo::engine
         bool engineSeen = false;
         bool inputSeen = false;
         bool renderingSeen = false;
+        bool graphicsBackendSeen = false;
         std::istringstream input{ std::string(source) };
         std::string lineText;
         std::size_t lineNumber = 0u;
@@ -234,6 +247,16 @@ export namespace kairo::engine
                 descriptor.RenderingProfile = tokens[1].Text;
                 renderingSeen = true;
             }
+            else if (tokens[0].Text == "graphics-backend")
+            {
+                RequireCount(tokens, 2u, lineNumber, tokens[0].Text);
+                if (version != 2u) throw ProjectFormatError(lineNumber,
+                    tokens[0].Column, "graphics-backend requires project format 2");
+                if (graphicsBackendSeen) throw ProjectFormatError(lineNumber,
+                    tokens[0].Column, "duplicate graphics-backend statement");
+                descriptor.GraphicsBackend = tokens[1].Text;
+                graphicsBackendSeen = true;
+            }
             else if (tokens[0].Text == "plugin")
             {
                 RequireCount(tokens, 2u, lineNumber, tokens[0].Text);
@@ -274,7 +297,8 @@ export namespace kairo::engine
             Quote(kairo::assets::NormalizeAssetPath(descriptor.AssetManifest).generic_string()) +
             "\nstartup-scene " + Quote(kairo::assets::NormalizeAssetPath(descriptor.StartupScene).generic_string()) +
             "\ninput-map " + Quote(kairo::assets::NormalizeAssetPath(descriptor.InputMap).generic_string()) +
-            "\nrendering-profile " + Quote(descriptor.RenderingProfile) + "\n";
+            "\nrendering-profile " + Quote(descriptor.RenderingProfile) +
+            "\ngraphics-backend " + Quote(descriptor.GraphicsBackend) + "\n";
         for (const auto& plugin : descriptor.EnabledPlugins) source += "plugin " + Quote(plugin) + "\n";
         for (const auto& profile : descriptor.BuildProfiles)
             source += "build-profile " + Quote(profile.Name) + " " + std::string(Name(profile.Kind)) + " " +

@@ -145,6 +145,7 @@ TEST_CASE("EngineCore owns versioned project descriptors for tools and players",
 {
     ProjectDescriptor descriptor{ "Runtime Project", "Assets.kassets", "Scenes/Main.kscene" };
     descriptor.EnabledPlugins = { "kairo.gameplay" };
+    descriptor.GraphicsBackend = "opengl";
     descriptor.BuildProfiles = {
         { "Shipping", ProjectBuildKind::Release, "Artifacts/Shipping" } };
     const std::string encoded = SerializeProjectDescriptor(descriptor);
@@ -155,6 +156,7 @@ TEST_CASE("EngineCore owns versioned project descriptors for tools and players",
         "kairo-project 1\nname \"Legacy\"\nassets \"Assets.kassets\"\n"
         "startup-scene \"Scenes/Main.kscene\"\n");
     CHECK(migrated.EngineVersion == "0.1.0");
+    CHECK(migrated.GraphicsBackend == "auto");
     CHECK(migrated.BuildProfiles.size() == 2u);
 
     const auto root = std::filesystem::temp_directory_path() /
@@ -163,6 +165,8 @@ TEST_CASE("EngineCore owns versioned project descriptors for tools and players",
     SaveProjectDescriptor(path, descriptor);
     CHECK(LoadProjectDescriptor(path) == descriptor);
     CHECK_FALSE(std::filesystem::exists(path.string() + ".tmp"));
+    descriptor.GraphicsBackend = "software";
+    REQUIRE_THROWS_AS(SerializeProjectDescriptor(descriptor), std::invalid_argument);
     std::filesystem::remove_all(root);
 }
 
