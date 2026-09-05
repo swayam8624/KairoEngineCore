@@ -111,8 +111,8 @@ export namespace kairo::engine
         try
         {
             std::ofstream output(temporary, std::ios::binary | std::ios::trunc);
-            if (!output || !output.write(reinterpret_cast<const char*>(bytes.data()),
-                static_cast<std::streamsize>(bytes.size())))
+            if (!output || (!bytes.empty() && !output.write(reinterpret_cast<const char*>(bytes.data()),
+                static_cast<std::streamsize>(bytes.size()))))
                 throw std::runtime_error("Cannot write compiled logic staging file: " + temporary.string());
             output.close();
             if (!output) throw std::runtime_error("Cannot flush compiled logic staging file: " + temporary.string());
@@ -123,6 +123,32 @@ export namespace kairo::engine
             std::filesystem::remove(temporary, error);
             throw;
         }
+    }
+
+    /// Validates compiler-produced logic bytes at the EngineCore ownership
+    /// boundary without exposing LogicProgram lifetime to tool modules.
+    inline void ValidateCompiledLogicPayload(std::span<const std::byte> payload)
+    {
+        (void)ParseLogicProgram(payload);
+    }
+
+    /// Publishes compiler-produced logic bytes while keeping LogicProgram and
+    /// CompiledLogicArtifact construction inside the module that owns them.
+    /// Tooling can therefore stage plain bytes and fingerprints before any
+    /// filesystem publication without importing these runtime implementation
+    /// types into compiler-sensitive consumer translation units.
+    inline void SaveCompiledLogicPayload(const std::filesystem::path& path,
+        kairo::assets::AssetID source,
+        const kairo::assets::AssetFingerprint& sourceFingerprint,
+        std::span<const std::byte> payload)
+    {
+        if (!source.IsValid())
+            throw std::invalid_argument("Compiled logic payload requires a valid source asset ID.");
+        CompiledLogicArtifact artifact;
+        artifact.Source = source;
+        artifact.SourceFingerprint = sourceFingerprint;
+        artifact.Program = ParseLogicProgram(payload);
+        SaveCompiledLogicArtifact(path, artifact);
     }
 
     [[nodiscard]] inline CompiledLogicArtifact LoadCompiledLogicArtifact(
