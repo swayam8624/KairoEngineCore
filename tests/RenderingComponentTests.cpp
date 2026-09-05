@@ -297,6 +297,6 @@ TEST_CASE("Rendering components expose reflection metadata",
     CHECK(registry.Contains("Kairo.Engine.CameraComponent"));
     CHECK(registry.Contains("Kairo.Engine.LightComponent"));
     CHECK(registry.Contains("Kairo.Engine.EnvironmentComponent"));
-    CHECK(registry.Require("Kairo.Engine.MeshRendererComponent").Properties.size() == 4u);
-    CHECK(registry.Require("Kairo.Engine.LightComponent").Properties.size() == 9u);
+    CHECK(registry.Require("Kairo.Engine.MeshRendererComponent").Properties.size() == 6u);
+    CHECK(registry.Require("Kairo.Engine.LightComponent").Properties.size() == 11u);
 }
