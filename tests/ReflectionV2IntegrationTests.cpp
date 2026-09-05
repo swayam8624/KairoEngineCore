@@ -7,6 +7,8 @@
 #include <string>
 #include <string_view>
 
+import Kairo.Assets;
+import Kairo.Foundation.Math;
 import Kairo.EngineCore;
 import Kairo.Reflection;
 

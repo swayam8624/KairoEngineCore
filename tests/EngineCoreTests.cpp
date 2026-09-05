@@ -612,7 +612,8 @@ TEST_CASE("EngineCore registers inspector-ready reflection metadata", "[KairoEng
 {
     kairo::reflection::ReflectionRegistry registry;
     RegisterEngineCoreReflection(registry);
-    REQUIRE(registry.Size() == 8u);
+    REQUIRE(registry.Size() == 9u);
+    CHECK(registry.Contains("Kairo.Engine.TransformComponent"));
     CHECK(registry.Contains("Kairo.Engine.EnvironmentComponent"));
     CHECK(registry.Contains("Kairo.Engine.LightComponent"));
     CHECK(registry.Contains("Kairo.Engine.MeshRendererComponent"));
@@ -643,10 +644,12 @@ TEST_CASE("EngineCore resolves scene components for reflection without retaining
     scene.SetLogic(entity, { { LogicAsset }, true });
 
     const auto components = EnumerateReflectedComponents(scene, entity);
-    REQUIRE(components.size() == 3u);
+    REQUIRE(components.size() == 4u);
     CHECK(components[0].TypeKey == "Kairo.Engine.NameComponent");
-    CHECK(components[1].TypeKey == "Kairo.Engine.CameraComponent");
-    CHECK(components[2].TypeKey == "Kairo.Engine.LogicComponent");
+    CHECK(components[1].TypeKey == "Kairo.Engine.TransformComponent");
+    CHECK(components[2].TypeKey == "Kairo.Engine.CameraComponent");
+    CHECK(components[3].TypeKey == "Kairo.Engine.LogicComponent");
+    CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.TransformComponent") == &scene.Transform(entity));
     CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.NameComponent") == &scene.Name(entity));
     CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.CameraComponent") == &scene.Camera(entity));
     CHECK(ResolveReflectedComponent(scene, entity, "Kairo.Engine.LogicComponent") == &scene.Logic(entity));
