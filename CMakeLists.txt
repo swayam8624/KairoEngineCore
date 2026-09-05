@@ -10,7 +10,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 # merged component commits validated by the KairoGameEngine superbuild.
 set(KAIRO_ENGINE_CORE_MATH_REVISION e12778734a8e8ffe060255a9c03683ad6c4b1a92)
 set(KAIRO_ENGINE_CORE_ASSETS_REVISION 1db4c25ecc4aeff7b6fc491c5197fdecf7e790bb)
-set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 7aaa24a4767433ad8911e0accbb2a480e607ded8)
+set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 85d58a0c679b9c8801ad0bf6a1b57c3b22106a94)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
@@ -82,6 +82,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
     add_executable(KairoEngineCoreTests
         tests/EngineCoreTests.cpp
         tests/RenderingComponentTests.cpp
+        tests/ReflectionV2IntegrationTests.cpp
         tests/DeterministicBytecodeTests.cpp
         tests/LogicStateTests.cpp
         tests/RuntimeSceneCommandsTests.cpp
