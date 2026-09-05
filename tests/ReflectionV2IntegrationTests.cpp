@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <string_view>
 
 import Kairo.EngineCore;
 import Kairo.Reflection;
@@ -68,8 +69,8 @@ TEST_CASE("Reflection V2 reads and writes EngineCore TRS composites",
         PropertyValue(QuaternionValue{ 0.0, 0.0, 0.0, 2.0 }));
     ValidateReflectedComponent("Kairo.Engine.TransformComponent", &transform);
 
-    CHECK(transform.Local.Translation == Vec3f{ 1.25f, -2.5f, 9.0f });
-    CHECK(transform.Local.Scale == Vec3f{ 2.0f, 3.0f, 4.0f });
+    CHECK((transform.Local.Translation == Vec3f{ 1.25f, -2.5f, 9.0f }));
+    CHECK((transform.Local.Scale == Vec3f{ 2.0f, 3.0f, 4.0f }));
     CHECK(transform.Local.Rotation.x == Catch::Approx(0.0f));
     CHECK(transform.Local.Rotation.y == Catch::Approx(0.0f));
     CHECK(transform.Local.Rotation.z == Catch::Approx(0.0f));
@@ -126,13 +127,13 @@ TEST_CASE("Renderer colors and collider extents use composite reflection values"
     registry.Write("Kairo.Engine.LightComponent", "color", &light,
         PropertyValue(Vector3Value{ 0.25, 0.5, 0.75 }));
     ValidateReflectedComponent("Kairo.Engine.LightComponent", &light);
-    CHECK(light.Color == Vec3f{ 0.25f, 0.5f, 0.75f });
+    CHECK((light.Color == Vec3f{ 0.25f, 0.5f, 0.75f }));
 
     ColliderComponent collider;
     registry.Write("Kairo.Engine.ColliderComponent", "half-extents", &collider,
         PropertyValue(Vector3Value{ 2.0, 1.0, 0.5 }));
     ValidateReflectedComponent("Kairo.Engine.ColliderComponent", &collider);
-    CHECK(collider.HalfExtents == Vec3f{ 2.0f, 1.0f, 0.5f });
+    CHECK((collider.HalfExtents == Vec3f{ 2.0f, 1.0f, 0.5f }));
 }
 
 TEST_CASE("Asset handles cross reflection as stable typed UUID references",
