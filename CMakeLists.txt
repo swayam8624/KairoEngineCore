@@ -84,6 +84,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/RenderingComponentTests.cpp
         tests/ReflectionV2IntegrationTests.cpp
         tests/DeterministicBytecodeTests.cpp
+        tests/LogicArtifactPayloadBoundaryTests.cpp
         tests/LogicStateTests.cpp
         tests/RuntimeSceneCommandsTests.cpp
         tests/NativeGameplayTests.cpp
