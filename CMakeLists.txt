@@ -9,7 +9,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 # Immutable revisions used only outside a local workspace checkout. They track
 # merged component commits validated by the KairoGameEngine superbuild.
 set(KAIRO_ENGINE_CORE_MATH_REVISION e12778734a8e8ffe060255a9c03683ad6c4b1a92)
-set(KAIRO_ENGINE_CORE_ASSETS_REVISION 1db4c25ecc4aeff7b6fc491c5197fdecf7e790bb)
+set(KAIRO_ENGINE_CORE_ASSETS_REVISION 9e63b89520a053a1144a0350415a9f107b66eafa)
 set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 85d58a0c679b9c8801ad0bf6a1b57c3b22106a94)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
@@ -66,7 +66,7 @@ endif()
 add_library(KairoEngineCore)
 target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR} FILES
     TextValidation.cppm TextFormat.cppm Entity.cppm Components.cppm RuntimeComponents.cppm ProjectDescriptor.cppm
-    Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm RuntimeWorld.cppm
+    Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm RuntimeWorld.cppm AnimationRuntime.cppm
     NativeGameplay.cppm NativeGameplayManifest.cppm ProductionSystems.cppm ProductionSystemsManifest.cppm ProductionRuntime.cppm ShippingRuntime.cppm
     CoreReflection.cppm Event.cppm Time.cppm Input.cppm InputMap.cppm
     LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm GameplayVM.cppm Layer.cppm
@@ -87,6 +87,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/LogicArtifactPayloadBoundaryTests.cpp
         tests/LogicStateTests.cpp
         tests/RuntimeSceneCommandsTests.cpp
+        tests/AnimationRuntimeTests.cpp
         tests/NativeGameplayTests.cpp
         tests/NativeGameplayManifestTests.cpp
         tests/ProductionSystemsTests.cpp
