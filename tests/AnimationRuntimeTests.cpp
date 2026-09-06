@@ -1,7 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <stdexcept>
 
 import Kairo.EngineCore;
 
@@ -112,6 +114,33 @@ namespace
         return scene;
     }
 
+    [[nodiscard]] GltfSceneArtifactData SkinnedRuntimeScene()
+    {
+        auto scene = RuntimeScene();
+        scene.Primitives[0].Skinning.resize(scene.Primitives[0].Mesh.Vertices.size());
+        for (GltfVertexSkinData& influence : scene.Primitives[0].Skinning)
+        {
+            influence.Joints = { 0u, 0u, 0u, 0u };
+            influence.Weights = { 1.0f, 0.0f, 0.0f, 0.0f };
+        }
+
+        GltfSkinData skin;
+        skin.Name = "RootSkin";
+        skin.SkeletonRoot = 0u;
+        skin.Joints = { 0u };
+        // The root's rest world transform is +10 on X, so the corresponding
+        // inverse bind is -10 on X. The rest-pose palette must become identity.
+        skin.InverseBindMatrices.push_back({
+            1.0f, 0.0f, 0.0f, 0.0f,
+            0.0f, 1.0f, 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+           -10.0f, 0.0f, 0.0f, 1.0f });
+        scene.Skins.push_back(skin);
+        scene.Nodes[1].SkinIndex = 0u;
+        ValidateGltfSceneArtifactData(scene);
+        return scene;
+    }
+
     [[nodiscard]] bool Near(float a, float b, float epsilon = 1.0e-4f)
     {
         return std::abs(a - b) <= epsilon;
@@ -208,4 +237,37 @@ TEST_CASE("world matrix resolution supports parents appearing after children")
     const auto world = ResolveGltfWorldMatrices(scene, pose);
     CHECK(Near(world[0](0u, 3u), 10.0f));
     CHECK(Near(world[0](1u, 3u), 2.0f));
+}
+
+TEST_CASE("glTF skin palette is identity at the matching bind pose")
+{
+    const auto scene = SkinnedRuntimeScene();
+    const auto pose = BuildGltfRestPose(scene);
+    const auto palette = BuildGltfAssetSpaceSkinPaletteForNode(scene, pose, 1u);
+    REQUIRE(palette.JointMatrices.size() == 1u);
+    const auto& matrix = palette.JointMatrices.front();
+    for (std::size_t row = 0u; row < 4u; ++row)
+        for (std::size_t column = 0u; column < 4u; ++column)
+            CHECK(Near(matrix(row, column), row == column ? 1.0f : 0.0f));
+}
+
+TEST_CASE("glTF skin palette follows animated joints in asset space")
+{
+    const auto scene = SkinnedRuntimeScene();
+    const auto pose = SampleGltfAnimation(scene, 0u, 1.0f);
+    const auto palette = BuildGltfAssetSpaceSkinPalette(scene, pose, 0u);
+    REQUIRE(palette.JointMatrices.size() == 1u);
+    const auto& matrix = palette.JointMatrices.front();
+    CHECK(Near(std::abs(matrix(0u, 0u)), 0.0f));
+    CHECK(Near(std::abs(matrix(0u, 2u)), 1.0f));
+    CHECK(Near(std::abs(matrix(2u, 0u)), 1.0f));
+    CHECK(Near(std::abs(matrix(2u, 2u)), 0.0f));
+}
+
+TEST_CASE("glTF skin palette node helper rejects nodes without a skin")
+{
+    const auto scene = RuntimeScene();
+    const auto pose = BuildGltfRestPose(scene);
+    REQUIRE_THROWS_AS(BuildGltfAssetSpaceSkinPaletteForNode(scene, pose, 0u),
+        std::invalid_argument);
 }
