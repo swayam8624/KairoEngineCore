@@ -1,7 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 
 import Kairo.Assets;
+import Kairo.EngineCore.AudioRuntime;
 import Kairo.EngineCore.AudioSceneComponents;
+import Kairo.EngineCore.Entity;
 import Kairo.EngineCore.Scene;
 
 namespace
