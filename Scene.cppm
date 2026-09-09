@@ -14,6 +14,7 @@ export module Kairo.EngineCore.Scene;
 import Kairo.EngineCore.Entity;
 import Kairo.EngineCore.Components;
 import Kairo.EngineCore.RuntimeComponents;
+import Kairo.EngineCore.AudioSceneComponents;
 import Kairo.Foundation.Math;
 export namespace kairo::engine
 {
@@ -330,6 +331,109 @@ export namespace kairo::engine
             return result;
         }
 
+        /// Stores or replaces an authored audio source. Clip decoding and voice
+        /// ownership remain adapter/runtime responsibilities.
+        void SetAudioEmitter(Entity entity, AudioEmitterComponent component)
+        {
+            component.Validate();
+            RecordFor(entity).AudioEmitter = std::move(component);
+        }
+        [[nodiscard]] bool HasAudioEmitter(Entity entity) const
+        {
+            return RecordFor(entity).AudioEmitter.has_value();
+        }
+        [[nodiscard]] AudioEmitterComponent& AudioEmitter(Entity entity)
+        {
+            return RequireComponent(RecordFor(entity).AudioEmitter, "audio emitter");
+        }
+        [[nodiscard]] const AudioEmitterComponent& AudioEmitter(Entity entity) const
+        {
+            return RequireComponent(RecordFor(entity).AudioEmitter, "audio emitter");
+        }
+        bool RemoveAudioEmitter(Entity entity)
+        {
+            auto& component = RecordFor(entity).AudioEmitter;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+        [[nodiscard]] std::vector<Entity> AudioEmitterEntities() const
+        {
+            std::vector<Entity> result;
+            for (const Entity entity : Entities())
+            {
+                const auto& component = RecordFor(entity).AudioEmitter;
+                if (component.has_value() && component->Enabled &&
+                    IsActiveInHierarchy(entity))
+                    result.push_back(entity);
+            }
+            return result;
+        }
+
+        /// Stores one listener transform source. Primary listener identity is
+        /// unique even while disabled so enabling a listener cannot suddenly
+        /// make authored state ambiguous.
+        void SetAudioListener(Entity entity, AudioListenerComponent component)
+        {
+            component.Validate();
+            if (component.Primary)
+            {
+                for (const Entity candidate : AudioListenerEntities())
+                {
+                    if (candidate != entity && RecordFor(candidate).AudioListener->Primary)
+                        throw std::invalid_argument(
+                            "Scene already contains a primary audio listener.");
+                }
+            }
+            RecordFor(entity).AudioListener = component;
+        }
+        [[nodiscard]] bool HasAudioListener(Entity entity) const
+        {
+            return RecordFor(entity).AudioListener.has_value();
+        }
+        [[nodiscard]] AudioListenerComponent& AudioListenerComponentFor(Entity entity)
+        {
+            return RequireComponent(RecordFor(entity).AudioListener, "audio listener");
+        }
+        [[nodiscard]] const AudioListenerComponent& AudioListenerComponentFor(Entity entity) const
+        {
+            return RequireComponent(RecordFor(entity).AudioListener, "audio listener");
+        }
+        bool RemoveAudioListener(Entity entity)
+        {
+            auto& component = RecordFor(entity).AudioListener;
+            const bool removed = component.has_value();
+            component.reset();
+            return removed;
+        }
+        [[nodiscard]] std::vector<Entity> AudioListenerEntities() const
+        {
+            std::vector<Entity> result;
+            for (const Entity entity : Entities())
+                if (RecordFor(entity).AudioListener.has_value()) result.push_back(entity);
+            return result;
+        }
+
+        /// Resolves the runtime listener deterministically. An active primary
+        /// wins; without one, the lowest stable active listener ID is selected.
+        [[nodiscard]] std::optional<Entity> ActiveAudioListener() const
+        {
+            std::optional<Entity> fallback;
+            std::optional<Entity> primary;
+            for (const Entity entity : AudioListenerEntities())
+            {
+                const auto& listener = *RecordFor(entity).AudioListener;
+                if (!listener.Enabled || !IsActiveInHierarchy(entity)) continue;
+                if (!fallback.has_value()) fallback = entity;
+                if (!listener.Primary) continue;
+                if (primary.has_value())
+                    throw std::logic_error(
+                        "Scene contains more than one primary audio listener.");
+                primary = entity;
+            }
+            return primary.has_value() ? primary : fallback;
+        }
+
         /// Stores one environment candidate. The scene may retain several
         /// candidates so future volume systems do not require a file-format
         /// break; ActiveEnvironment resolves the global candidate today.
@@ -461,6 +565,8 @@ export namespace kairo::engine
             std::optional<SceneInstanceComponent> SceneInstance;
             std::optional<CameraComponent> Camera;
             std::optional<LightComponent> Light;
+            std::optional<AudioEmitterComponent> AudioEmitter;
+            std::optional<AudioListenerComponent> AudioListener;
             std::optional<EnvironmentComponent> Environment;
             std::optional<LogicComponent> Logic;
             std::optional<RigidBodyComponent> RigidBody;
