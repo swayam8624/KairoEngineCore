@@ -2,9 +2,11 @@
 
 #include <stdexcept>
 
+import Kairo.Assets;
 import Kairo.EngineCore.SceneComposition;
 import Kairo.EngineCore.Scene;
 import Kairo.EngineCore.RuntimeComponents;
+import Kairo.EngineCore.AudioSceneComponents;
 
 using namespace kairo::engine;
 
@@ -28,6 +30,20 @@ namespace
 
         LightComponent light;
         scene.SetLight(child, light);
+
+        AudioEmitterComponent emitter;
+        emitter.Clip = {
+            kairo::assets::AssetID::Parse(
+                "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee") };
+        emitter.Loop = true;
+        emitter.Gain = 0.42;
+        emitter.Bus = "world";
+        scene.SetAudioEmitter(root, emitter);
+
+        AudioListenerComponent listener;
+        listener.Enabled = true;
+        listener.Primary = false;
+        scene.SetAudioListener(child, listener);
         return scene;
     }
 }
@@ -60,6 +76,16 @@ TEST_CASE("scene composition remaps IDs while preserving authored state and hier
     CHECK(destination.Transform(*root).Local.Translation.z == 20.0f);
     CHECK(destination.HasCamera(*root));
     CHECK(destination.HasLight(*child));
+    REQUIRE(destination.HasAudioEmitter(*root));
+    CHECK(destination.AudioEmitter(*root).Clip.ID ==
+        kairo::assets::AssetID::Parse(
+            "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee"));
+    CHECK(destination.AudioEmitter(*root).Loop);
+    CHECK(destination.AudioEmitter(*root).Gain == 0.42);
+    CHECK(destination.AudioEmitter(*root).Bus == "world");
+    REQUIRE(destination.HasAudioListener(*child));
+    CHECK(destination.AudioListener(*child).Enabled);
+    CHECK_FALSE(destination.AudioListener(*child).Primary);
     CHECK(destination.Contains(persistent));
 }
 
@@ -83,6 +109,28 @@ TEST_CASE("scene append is transactional when authored components conflict")
     CHECK(destination.Contains(persistentCamera));
     CHECK(destination.Camera(persistentCamera).Primary);
     CHECK(destination.Name(persistentCamera).Value == "PersistentCamera");
+}
+
+TEST_CASE("scene append keeps primary-listener conflicts transactional")
+{
+    Scene destination;
+    const Entity persistentListener = destination.CreateEntity("PersistentListener");
+    AudioListenerComponent existing;
+    existing.Primary = true;
+    destination.SetAudioListener(persistentListener, existing);
+
+    Scene source;
+    const Entity streamedListener = source.CreateEntity("StreamedListener");
+    AudioListenerComponent incoming;
+    incoming.Primary = true;
+    source.SetAudioListener(streamedListener, incoming);
+
+    REQUIRE(destination.Size() == 1u);
+    CHECK_THROWS_AS(AppendScene(destination, source), std::invalid_argument);
+    CHECK(destination.Size() == 1u);
+    CHECK(destination.Contains(persistentListener));
+    CHECK(destination.AudioListener(persistentListener).Primary);
+    CHECK(destination.Name(persistentListener).Value == "PersistentListener");
 }
 
 TEST_CASE("scene composition removal preserves persistent entities and external parents")
