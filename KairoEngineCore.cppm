@@ -29,6 +29,8 @@ export import Kairo.EngineCore.LogicState;
 export import Kairo.EngineCore.LogicBytecode;
 export import Kairo.EngineCore.LogicArtifact;
 export import Kairo.EngineCore.GameplayVM;
+// SaveGame is the stable archive boundary for engine- and game-owned persistent chunks.
+export import Kairo.EngineCore.SaveGame;
 export import Kairo.EngineCore.Layer;
 export import Kairo.EngineCore.Logger;
 export import Kairo.EngineCore.Diagnostics;
