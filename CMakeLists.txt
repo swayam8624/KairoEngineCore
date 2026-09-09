@@ -93,6 +93,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/AnimationControllerTests.cpp
         tests/AnimationRootMotionTests.cpp
         tests/AudioRuntimeTests.cpp
+        tests/AudioSceneComponentTests.cpp
         tests/SaveGameTests.cpp
         tests/NativeGameplayTests.cpp
         tests/NativeGameplayManifestTests.cpp
