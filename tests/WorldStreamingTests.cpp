@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <array>
+#include <cstdint>
 #include <stdexcept>
 
 import Kairo.EngineCore.WorldStreaming;
@@ -49,7 +50,7 @@ TEST_CASE("world streaming uses load and keep radii as hysteresis")
     const auto load = runtime.PlanUpdate(nearObservers);
     REQUIRE(load.Loads.size() == 1u);
     CHECK(load.Unloads.empty());
-    CHECK(load.Loads.front().Coordinate == WorldCellCoordinate{ 0, 0 });
+    CHECK((load.Loads.front().Coordinate == WorldCellCoordinate{ 0, 0 }));
     CHECK(runtime.State({ 0, 0 }) == WorldCellState::Loading);
 
     runtime.CompleteLoad({ 0, 0 }, true);
@@ -91,8 +92,8 @@ TEST_CASE("world streaming unions demand from multiple observers")
     };
     const auto plan = runtime.PlanUpdate(observers);
     REQUIRE(plan.Loads.size() == 2u);
-    CHECK(plan.Loads[0].Coordinate == WorldCellCoordinate{ 0, 0 });
-    CHECK(plan.Loads[1].Coordinate == WorldCellCoordinate{ 10, 0 });
+    CHECK((plan.Loads[0].Coordinate == WorldCellCoordinate{ 0, 0 }));
+    CHECK((plan.Loads[1].Coordinate == WorldCellCoordinate{ 10, 0 }));
     CHECK(runtime.State({ 5, 5 }) == WorldCellState::Unloaded);
 }
 
