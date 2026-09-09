@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 import Kairo.EngineCore;
+import Kairo.Foundation.Math;
 
 using namespace kairo::assets;
 using namespace kairo::engine;
@@ -107,6 +108,22 @@ TEST_CASE("root motion accumulates multiple complete loops without a backwards j
 
     CHECK(Near(delta.Translation.x, 8.0f));
     CHECK(Near(delta.Translation.y, 4.0f));
+    CHECK(kairo::foundation::math::NearlyEqual(
+        delta.Rotation,
+        kairo::foundation::math::Quatf::Identity(),
+        1.0e-4f));
+}
+
+TEST_CASE("root motion handles very large skipped loop counts without per-loop work")
+{
+    const auto scene = RootMotionScene();
+    // Same local sample after 100,000 complete 2-second cycles. This protects
+    // the hitch/server-resume path from accidentally regressing to O(loopCount).
+    const auto delta = ExtractGltfRootMotion(
+        scene, 0u, 0u, 0.5f, 200000.5f, AnimationTimeMode::Loop);
+
+    CHECK(Near(delta.Translation.x, 400000.0f, 0.05f));
+    CHECK(Near(delta.Translation.y, 200000.0f, 0.05f));
     CHECK(kairo::foundation::math::NearlyEqual(
         delta.Rotation,
         kairo::foundation::math::Quatf::Identity(),
