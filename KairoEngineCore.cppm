@@ -19,6 +19,7 @@ export import Kairo.EngineCore.AnimationRootMotion;
 export import Kairo.EngineCore.GltfSkinningRuntime;
 export import Kairo.EngineCore.AudioRuntime;
 export import Kairo.EngineCore.AudioSceneComponents;
+export import Kairo.EngineCore.AudioScenePersistence;
 export import Kairo.EngineCore.NativeGameplay;
 export import Kairo.EngineCore.NativeGameplayManifest;
 export import Kairo.EngineCore.ProductionSystems;
