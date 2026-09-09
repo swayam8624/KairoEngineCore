@@ -13,6 +13,7 @@ export import Kairo.EngineCore.SceneSerialization;
 export import Kairo.EngineCore.RuntimeWorld;
 export import Kairo.EngineCore.WorldStreaming;
 export import Kairo.EngineCore.AnimationRuntime;
+export import Kairo.EngineCore.AnimationController;
 export import Kairo.EngineCore.GltfSkinningRuntime;
 export import Kairo.EngineCore.AudioRuntime;
 export import Kairo.EngineCore.NativeGameplay;
