@@ -1,5 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <string>
+#include <string_view>
+
 import Kairo.Assets;
 import Kairo.EngineCore.AudioRuntime;
 import Kairo.EngineCore.AudioSceneComponents;
@@ -10,7 +13,10 @@ import Kairo.EngineCore.Scene;
 
 namespace
 {
-    [[nodiscard]] kairo::assets::AudioAssetHandle RegisterAudio(
+    using AudioAssetHandle =
+        kairo::assets::AssetHandle<kairo::assets::AssetType::Audio>;
+
+    [[nodiscard]] AudioAssetHandle RegisterAudio(
         kairo::assets::AssetRegistry& assets, std::string_view idText,
         std::string_view path)
     {
