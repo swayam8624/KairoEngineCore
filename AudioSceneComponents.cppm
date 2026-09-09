@@ -17,7 +17,12 @@ export namespace kairo::engine
     /// playback/mixing remains AudioRuntime-owned.
     struct AudioEmitterComponent final
     {
-        kairo::assets::AudioAssetHandle Clip;
+        // Use the stable generic asset-handle contract rather than the newer
+        // convenience alias. KairoGameEngine intentionally validates adjacent
+        // submodule revisions together, so EngineCore must remain source-
+        // compatible with the minimum KairoAssets API that already exposes
+        // AssetType::Audio and AssetHandle<...>.
+        kairo::assets::AssetHandle<kairo::assets::AssetType::Audio> Clip;
         bool Enabled = true;
         bool PlayOnStart = true;
         bool Loop = false;
