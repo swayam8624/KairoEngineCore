@@ -8,7 +8,8 @@ import Kairo.EngineCore.Scene;
 
 namespace
 {
-    [[nodiscard]] kairo::assets::AudioAssetHandle TestAudioHandle()
+    [[nodiscard]] kairo::assets::AssetHandle<kairo::assets::AssetType::Audio>
+    TestAudioHandle()
     {
         return { kairo::assets::AssetID::Parse("12345678-1234-4234-9234-123456789abc") };
     }
