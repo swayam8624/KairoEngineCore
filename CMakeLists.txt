@@ -69,7 +69,7 @@ target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CUR
     Scene.cppm SceneSerialization.cppm RuntimeSceneCommands.cppm RuntimeWorld.cppm AnimationRuntime.cppm GltfSkinningRuntime.cppm AudioRuntime.cppm
     NativeGameplay.cppm NativeGameplayManifest.cppm ProductionSystems.cppm ProductionSystemsManifest.cppm ProductionRuntime.cppm ShippingRuntime.cppm
     CoreReflection.cppm Event.cppm Time.cppm Input.cppm InputMap.cppm
-    LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm GameplayVM.cppm Layer.cppm
+    LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm GameplayVM.cppm SaveGame.cppm Layer.cppm
     Platform.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoReflection KairoAssets)
 add_library(Kairo::EngineCore ALIAS KairoEngineCore)
@@ -89,6 +89,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/RuntimeSceneCommandsTests.cpp
         tests/AnimationRuntimeTests.cpp
         tests/AudioRuntimeTests.cpp
+        tests/SaveGameTests.cpp
         tests/NativeGameplayTests.cpp
         tests/NativeGameplayManifestTests.cpp
         tests/ProductionSystemsTests.cpp
