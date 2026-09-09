@@ -136,7 +136,6 @@ export namespace kairo::engine
                 listener.Validate();
                 writer.WriteU8(BoolByte(listener.Enabled));
                 writer.WriteU8(BoolByte(listener.Primary));
-                WriteF64(writer, listener.Gain);
             }
         }
 
@@ -209,7 +208,6 @@ export namespace kairo::engine
             {
                 record.Listener.Enabled = ReadBool(reader);
                 record.Listener.Primary = ReadBool(reader);
-                record.Listener.Gain = ReadF64(reader);
                 record.Listener.Validate();
                 if (record.Listener.Primary)
                 {
