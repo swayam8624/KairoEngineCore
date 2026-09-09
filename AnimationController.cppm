@@ -17,7 +17,7 @@ module;
 export module Kairo.EngineCore.AnimationController;
 
 import Kairo.Assets;
-import Kairo.EngineCore.AnimationRuntime;
+export import Kairo.EngineCore.AnimationRuntime;
 
 export namespace kairo::engine
 {
@@ -105,6 +105,18 @@ export namespace kairo::engine
                 number != nullptr && !std::isfinite(*number))
                 throw std::invalid_argument(
                     "Animation transition numeric conditions must be finite.");
+            switch (Operator)
+            {
+                case AnimationConditionOperator::Equal:
+                case AnimationConditionOperator::NotEqual:
+                case AnimationConditionOperator::Less:
+                case AnimationConditionOperator::LessEqual:
+                case AnimationConditionOperator::Greater:
+                case AnimationConditionOperator::GreaterEqual: break;
+                default:
+                    throw std::invalid_argument(
+                        "Animation transition condition operator is invalid.");
+            }
             if (std::holds_alternative<bool>(Value) &&
                 Operator != AnimationConditionOperator::Equal &&
                 Operator != AnimationConditionOperator::NotEqual)
