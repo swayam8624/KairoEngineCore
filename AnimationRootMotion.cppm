@@ -4,6 +4,7 @@ module;
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 
 export module Kairo.EngineCore.AnimationRootMotion;
@@ -123,6 +124,69 @@ export namespace kairo::engine
             return result;
         }
 
+        [[nodiscard]] inline Quaternion QuaternionPower(
+            Quaternion base,
+            std::uint64_t exponent) noexcept
+        {
+            Quaternion result = Quaternion::Identity();
+            base = base.Normalized();
+            // Exponentiation by squaring keeps large clock jumps logarithmic in
+            // the number of skipped loops rather than proportional to them.
+            while (exponent != 0u)
+            {
+                if ((exponent & 1u) != 0u)
+                    result = (base * result).Normalized();
+                exponent >>= 1u;
+                if (exponent != 0u)
+                    base = (base * base).Normalized();
+            }
+            return result;
+        }
+
+        [[nodiscard]] inline float ScaledTranslationComponent(
+            float component,
+            std::uint64_t repetitions)
+        {
+            const long double scaled = static_cast<long double>(component) *
+                static_cast<long double>(repetitions);
+            constexpr long double maximum =
+                static_cast<long double>(std::numeric_limits<float>::max());
+            if (!std::isfinite(scaled) || scaled > maximum || scaled < -maximum)
+                throw std::overflow_error(
+                    "Repeated root-motion translation exceeds float range.");
+            return static_cast<float>(scaled);
+        }
+
+        [[nodiscard]] inline GltfRootMotionDelta RepeatParentSpace(
+            const GltfRootMotionDelta& delta,
+            std::uint64_t repetitions)
+        {
+            if (repetitions == 0u) return {};
+            GltfRootMotionDelta result;
+            result.Translation = {
+                ScaledTranslationComponent(delta.Translation.x, repetitions),
+                ScaledTranslationComponent(delta.Translation.y, repetitions),
+                ScaledTranslationComponent(delta.Translation.z, repetitions)
+            };
+            result.Rotation = QuaternionPower(delta.Rotation, repetitions);
+            return result;
+        }
+
+        [[nodiscard]] inline std::uint64_t CycleIndex(
+            float timeSeconds,
+            float durationSeconds)
+        {
+            const long double cycles = std::floor(
+                static_cast<long double>(timeSeconds) /
+                static_cast<long double>(durationSeconds));
+            constexpr long double maximum = static_cast<long double>(
+                std::numeric_limits<std::uint64_t>::max());
+            if (!std::isfinite(cycles) || cycles < 0.0L || cycles > maximum)
+                throw std::overflow_error(
+                    "Root-motion animation clock exceeds supported loop count.");
+            return static_cast<std::uint64_t>(cycles);
+        }
+
         [[nodiscard]] inline bool IsExactPositiveMultiple(
             float value,
             float duration) noexcept
@@ -173,10 +237,10 @@ export namespace kairo::engine
         if (mode != AnimationTimeMode::Loop)
             throw std::invalid_argument("Root-motion time mode is invalid.");
 
-        std::uint64_t previousCycle = static_cast<std::uint64_t>(
-            std::floor(previousTimeSeconds / duration));
-        std::uint64_t currentCycle = static_cast<std::uint64_t>(
-            std::floor(currentTimeSeconds / duration));
+        std::uint64_t previousCycle = animation_root_motion_detail::CycleIndex(
+            previousTimeSeconds, duration);
+        std::uint64_t currentCycle = animation_root_motion_detail::CycleIndex(
+            currentTimeSeconds, duration);
         float previousLocal = std::fmod(previousTimeSeconds, duration);
         float currentLocal = std::fmod(currentTimeSeconds, duration);
         if (previousLocal < 0.0f) previousLocal += duration;
@@ -226,11 +290,10 @@ export namespace kairo::engine
 
         const std::uint64_t completeMiddleCycles =
             currentCycle - previousCycle - 1u;
-        for (std::uint64_t cycle = 0u; cycle < completeMiddleCycles; ++cycle)
-        {
-            accumulated = animation_root_motion_detail::ComposeParentSpace(
-                accumulated, fullCycle);
-        }
+        accumulated = animation_root_motion_detail::ComposeParentSpace(
+            accumulated,
+            animation_root_motion_detail::RepeatParentSpace(
+                fullCycle, completeMiddleCycles));
         accumulated = animation_root_motion_detail::ComposeParentSpace(
             accumulated,
             animation_root_motion_detail::DeltaBetween(clipStart, to, settings));
