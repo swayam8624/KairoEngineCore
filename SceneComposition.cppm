@@ -89,6 +89,12 @@ export namespace kairo::engine
             if (source.HasCollider(sourceEntity))
                 destination.SetCollider(destinationEntity,
                     source.Collider(sourceEntity));
+            if (source.HasAudioEmitter(sourceEntity))
+                destination.SetAudioEmitter(destinationEntity,
+                    source.AudioEmitter(sourceEntity));
+            if (source.HasAudioListener(sourceEntity))
+                destination.SetAudioListener(destinationEntity,
+                    source.AudioListener(sourceEntity));
         }
     }
 
@@ -129,8 +135,8 @@ export namespace kairo::engine
         }
 
         // Copy optional authored components after the base records exist. A
-        // conflict such as two primary cameras throws against the candidate and
-        // therefore leaves the live destination untouched.
+        // conflict such as two primary cameras/listeners throws against the
+        // candidate and therefore leaves the live destination untouched.
         for (const Entity sourceEntity : sourceEntities)
         {
             const Entity destinationEntity =
