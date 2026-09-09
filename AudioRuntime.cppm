@@ -413,7 +413,7 @@ export namespace kairo::engine
             return found->second;
         }
 
-        [[nodiscard]] auto SelectVoiceToSteal()
+        [[nodiscard]] std::map<std::uint64_t, Voice>::iterator SelectVoiceToSteal()
         {
             return std::min_element(m_Voices.begin(), m_Voices.end(),
                 [](const auto& a, const auto& b)
