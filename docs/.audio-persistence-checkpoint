@@ -1,0 +1,1 @@
+Audio scene persistence is covered by KairoEngineCoreTests. This marker exists only to keep the persistence checkpoint branch explicit during integration.
