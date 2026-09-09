@@ -12,8 +12,8 @@ module;
 
 export module Kairo.EngineCore.SceneComposition;
 
-import Kairo.EngineCore.Entity;
-import Kairo.EngineCore.Scene;
+export import Kairo.EngineCore.Entity;
+export import Kairo.EngineCore.Scene;
 
 export namespace kairo::engine
 {
