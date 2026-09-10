@@ -10,6 +10,7 @@ export import Kairo.EngineCore.RuntimeComponents;
 export import Kairo.EngineCore.Scene;
 export import Kairo.EngineCore.RuntimeSceneCommands;
 export import Kairo.EngineCore.SceneSerialization;
+export import Kairo.EngineCore.SceneSerializationV5;
 export import Kairo.EngineCore.SceneComposition;
 export import Kairo.EngineCore.RuntimeWorld;
 export import Kairo.EngineCore.WorldStreaming;
