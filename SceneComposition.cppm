@@ -94,7 +94,7 @@ export namespace kairo::engine
                     source.AudioEmitter(sourceEntity));
             if (source.HasAudioListener(sourceEntity))
                 destination.SetAudioListener(destinationEntity,
-                    source.AudioListener(sourceEntity));
+                    source.AudioListenerComponentFor(sourceEntity));
         }
     }
 
