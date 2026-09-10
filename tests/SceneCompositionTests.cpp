@@ -84,8 +84,8 @@ TEST_CASE("scene composition remaps IDs while preserving authored state and hier
     CHECK(destination.AudioEmitter(*root).Gain == 0.42);
     CHECK(destination.AudioEmitter(*root).Bus == "world");
     REQUIRE(destination.HasAudioListener(*child));
-    CHECK(destination.AudioListener(*child).Enabled);
-    CHECK_FALSE(destination.AudioListener(*child).Primary);
+    CHECK(destination.AudioListenerComponentFor(*child).Enabled);
+    CHECK_FALSE(destination.AudioListenerComponentFor(*child).Primary);
     CHECK(destination.Contains(persistent));
 }
 
@@ -129,7 +129,7 @@ TEST_CASE("scene append keeps primary-listener conflicts transactional")
     CHECK_THROWS_AS(AppendScene(destination, source), std::invalid_argument);
     CHECK(destination.Size() == 1u);
     CHECK(destination.Contains(persistentListener));
-    CHECK(destination.AudioListener(persistentListener).Primary);
+    CHECK(destination.AudioListenerComponentFor(persistentListener).Primary);
     CHECK(destination.Name(persistentListener).Value == "PersistentListener");
 }
 
