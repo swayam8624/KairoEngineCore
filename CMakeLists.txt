@@ -8,9 +8,9 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 
 # Immutable revisions used only outside a local workspace checkout. They track
 # merged component commits validated by the KairoGameEngine superbuild.
-set(KAIRO_ENGINE_CORE_MATH_REVISION e12778734a8e8ffe060255a9c03683ad6c4b1a92)
-set(KAIRO_ENGINE_CORE_ASSETS_REVISION fc543fb1d185eba93c9b2f8df70203a409004efd)
-set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 85d58a0c679b9c8801ad0bf6a1b57c3b22106a94)
+set(KAIRO_ENGINE_CORE_MATH_REVISION b0e0bf14d81398c85d16011d6c897c782fa6068a)
+set(KAIRO_ENGINE_CORE_ASSETS_REVISION 233a24954adbee34d746d91848786734b827a4ce)
+set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 1e27101b0e3fcac79aa51bf67b888c8783ad3b3f
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
@@ -36,6 +36,8 @@ if(NOT TARGET KairoMath)
     set(KAIRO_MATH_SOURCE_DIR "" CACHE PATH "Path to local KairoMath")
     if(KAIRO_MATH_SOURCE_DIR AND EXISTS "${KAIRO_MATH_SOURCE_DIR}/CMakeLists.txt")
         add_subdirectory("${KAIRO_MATH_SOURCE_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoMath")
+    elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../KairoMath/CMakeLists.txt")
+        add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../KairoMath" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoMath")
     elseif(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/../Foundation/KairoMath/CMakeLists.txt")
         add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/../Foundation/KairoMath" "${CMAKE_CURRENT_BINARY_DIR}/_deps/KairoMath")
     else()
