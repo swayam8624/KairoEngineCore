@@ -130,15 +130,16 @@ TEST_CASE("Gameplay VM preserves typed variables across bounded dispatches")
 
     RecordingGameplayHost host;
     GameplayInstance instance(restored);
-    CHECK(instance.Dispatch({ 1u }, { .Event = GameplayEventKind::BeginPlay }, host) == 3u);
+    CHECK(instance.Dispatch({ 1u }, { .Event = GameplayEventKind::BeginPlay, .Action = {}, .DeltaSeconds = 0.0,
+        .ActionValue = 0.0, .OtherEntity = {} }, host) == 3u);
     CHECK(std::get<double>(instance.Variable("score")) == 2.0);
-    CHECK(instance.Dispatch({ 1u }, { .Event = GameplayEventKind::Tick,
-        .DeltaSeconds = 1.0 / 60.0 }, host) == 8u);
+    CHECK(instance.Dispatch({ 1u }, { .Event = GameplayEventKind::Tick, .Action = {},
+        .DeltaSeconds = 1.0 / 60.0, .ActionValue = 0.0, .OtherEntity = {} }, host) == 8u);
     CHECK(std::get<double>(instance.Variable("score")) == 3.0);
     CHECK(host.Positions.at(77u) == kairo::foundation::math::Vec3d{ 1.0, 2.0, 3.0 });
 
-    CHECK(instance.Dispatch({ 1u }, { .Event = GameplayEventKind::InputPressed,
-        .Action = "Spawn", .ActionValue = 1.0 }, host) == 5u);
+    CHECK(instance.Dispatch({ 1u }, { .Event = GameplayEventKind::InputPressed, .Action = "Spawn",
+        .DeltaSeconds = 0.0, .ActionValue = 1.0, .OtherEntity = {} }, host) == 5u);
     REQUIRE(host.Destroyed.size() == 1u);
     CHECK(host.Destroyed.front() == Entity{ 100u });
     REQUIRE(host.AddedTags.size() == 1u);
@@ -162,7 +163,8 @@ TEST_CASE("Gameplay VM rejects runaway loops and variable type changes")
     loop.Entries = { { GameplayEventKind::Tick, {}, 0u } };
     GameplayInstance runaway(loop);
     REQUIRE_THROWS_AS(runaway.Dispatch({ 1u },
-        { .Event = GameplayEventKind::Tick, .DeltaSeconds = 0.01 }, host, 32u),
+        { .Event = GameplayEventKind::Tick, .Action = {}, .DeltaSeconds = 0.01,
+            .ActionValue = 0.0, .OtherEntity = {} }, host, 32u),
         std::runtime_error);
 
     GameplayProgram mismatch;
@@ -177,5 +179,6 @@ TEST_CASE("Gameplay VM rejects runaway loops and variable type changes")
     mismatch.Entries = { { GameplayEventKind::BeginPlay, {}, 0u } };
     GameplayInstance instance(mismatch);
     REQUIRE_THROWS_AS(instance.Dispatch({ 1u },
-        { .Event = GameplayEventKind::BeginPlay }, host), std::runtime_error);
+        { .Event = GameplayEventKind::BeginPlay, .Action = {}, .DeltaSeconds = 0.0,
+        .ActionValue = 0.0, .OtherEntity = {} }, host), std::runtime_error);
 }
