@@ -59,6 +59,9 @@ export namespace kairo::engine
         /// stores the portable spelling but deliberately imports no graphics
         /// API or KairoRenderer module.
         std::string GraphicsBackend = "auto";
+        /// Optional project-root-relative executable used by Editor Play.
+        /// When absent, hosts may fall back to the generic KairoPlayer.
+        std::optional<std::filesystem::path> RuntimeExecutable;
         std::vector<std::string> EnabledPlugins;
         std::vector<ProjectBuildProfile> BuildProfiles{
             { "Development", ProjectBuildKind::Development, "Build/Development" },
@@ -139,6 +142,8 @@ export namespace kairo::engine
         ValidateSetting(descriptor.EngineVersion, "Engine version");
         ValidateSetting(descriptor.RenderingProfile, "Rendering profile");
         ValidateSetting(descriptor.GraphicsBackend, "Graphics backend");
+        if (descriptor.RuntimeExecutable.has_value())
+            (void)kairo::assets::NormalizeAssetPath(*descriptor.RuntimeExecutable);
         if (descriptor.GraphicsBackend != "auto" &&
             descriptor.GraphicsBackend != "vulkan" &&
             descriptor.GraphicsBackend != "metal" &&
@@ -181,6 +186,7 @@ export namespace kairo::engine
         bool inputSeen = false;
         bool renderingSeen = false;
         bool graphicsBackendSeen = false;
+        bool runtimeExecutableSeen = false;
         std::istringstream input{ std::string(source) };
         std::string lineText;
         std::size_t lineNumber = 0u;
@@ -257,6 +263,16 @@ export namespace kairo::engine
                 descriptor.GraphicsBackend = tokens[1].Text;
                 graphicsBackendSeen = true;
             }
+            else if (tokens[0].Text == "runtime-executable")
+            {
+                RequireCount(tokens, 2u, lineNumber, tokens[0].Text);
+                if (version != 2u) throw ProjectFormatError(lineNumber,
+                    tokens[0].Column, "runtime-executable requires project format 2");
+                if (runtimeExecutableSeen) throw ProjectFormatError(lineNumber,
+                    tokens[0].Column, "duplicate runtime-executable statement");
+                descriptor.RuntimeExecutable = ParsePortablePath(tokens[1], lineNumber);
+                runtimeExecutableSeen = true;
+            }
             else if (tokens[0].Text == "plugin")
             {
                 RequireCount(tokens, 2u, lineNumber, tokens[0].Text);
@@ -299,6 +315,9 @@ export namespace kairo::engine
             "\ninput-map " + Quote(kairo::assets::NormalizeAssetPath(descriptor.InputMap).generic_string()) +
             "\nrendering-profile " + Quote(descriptor.RenderingProfile) +
             "\ngraphics-backend " + Quote(descriptor.GraphicsBackend) + "\n";
+        if (descriptor.RuntimeExecutable.has_value())
+            source += "runtime-executable " +
+                Quote(kairo::assets::NormalizeAssetPath(*descriptor.RuntimeExecutable).generic_string()) + "\n";
         for (const auto& plugin : descriptor.EnabledPlugins) source += "plugin " + Quote(plugin) + "\n";
         for (const auto& profile : descriptor.BuildProfiles)
             source += "build-profile " + Quote(profile.Name) + " " + std::string(Name(profile.Kind)) + " " +
