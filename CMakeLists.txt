@@ -117,7 +117,8 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/ProductionSystemsTests.cpp
         tests/ProductionRuntimeTests.cpp
         tests/ShippingRuntimeTests.cpp
-        tests/PlatformTests.cpp)
+        tests/PlatformTests.cpp
+        tests/ProjectDescriptorTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
     if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 23)
         target_compile_options(KairoEngineCoreTests PRIVATE
