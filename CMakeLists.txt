@@ -72,6 +72,14 @@ target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CUR
     LogicState.cppm LogicBytecode.cppm LogicArtifact.cppm GameplayVM.cppm SaveGame.cppm Layer.cppm
     Platform.cppm Logger.cppm CoreDiagnostics.cppm JobSystem.cppm Application.cppm KairoEngineCore.cppm)
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoReflection KairoAssets)
+if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    # PropertyMetadata deliberately keeps appended fields defaulted so older
+    # aggregate initializers remain source-compatible. Restrict the diagnostic
+    # exception to the metadata registration TU rather than hiding it globally.
+    set_source_files_properties(CoreReflection.cppm PROPERTIES
+        COMPILE_OPTIONS "-Wno-missing-field-initializers;-Wno-missing-designated-field-initializers")
+endif()
+set_property(TARGET KairoEngineCore PROPERTY COMPILE_WARNING_AS_ERROR ON)
 add_library(Kairo::EngineCore ALIAS KairoEngineCore)
 
 if(KAIRO_ENGINE_CORE_BUILD_TESTS)
@@ -104,8 +112,22 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/ShippingRuntimeTests.cpp
         tests/PlatformTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(KairoEngineCoreTests PRIVATE
+            -Wno-c2y-extensions
+            -Wno-missing-field-initializers
+            -Wno-missing-designated-field-initializers)
+    endif()
+    set_property(TARGET KairoEngineCoreTests PROPERTY COMPILE_WARNING_AS_ERROR ON)
     add_executable(KairoEngineCorePhase3Tests tests/Phase3RuntimeTests.cpp)
     target_link_libraries(KairoEngineCorePhase3Tests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(KairoEngineCorePhase3Tests PRIVATE
+            -Wno-c2y-extensions
+            -Wno-missing-field-initializers
+            -Wno-missing-designated-field-initializers)
+    endif()
+    set_property(TARGET KairoEngineCorePhase3Tests PROPERTY COMPILE_WARNING_AS_ERROR ON)
     enable_testing()
     add_test(NAME KairoEngineCoreTests COMMAND KairoEngineCoreTests)
     add_test(NAME KairoEngineCorePhase3Tests COMMAND KairoEngineCorePhase3Tests)
