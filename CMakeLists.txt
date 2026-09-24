@@ -112,7 +112,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/ShippingRuntimeTests.cpp
         tests/PlatformTests.cpp)
     target_link_libraries(KairoEngineCoreTests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 23)
         target_compile_options(KairoEngineCoreTests PRIVATE
             -Wno-c2y-extensions
             -Wno-missing-field-initializers
@@ -121,7 +121,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
     set_property(TARGET KairoEngineCoreTests PROPERTY COMPILE_WARNING_AS_ERROR ON)
     add_executable(KairoEngineCorePhase3Tests tests/Phase3RuntimeTests.cpp)
     target_link_libraries(KairoEngineCorePhase3Tests PRIVATE KairoEngineCore Catch2::Catch2WithMain)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 23)
         target_compile_options(KairoEngineCorePhase3Tests PRIVATE
             -Wno-c2y-extensions
             -Wno-missing-field-initializers
