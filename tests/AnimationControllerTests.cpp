@@ -165,7 +165,7 @@ TEST_CASE("equal priority animation transitions are stable by authored order")
 
     AnimationControllerRuntime runtime(definition, scene);
     AnimationParameterSet parameters;
-    runtime.Advance(scene, parameters, 0.0f);
+    (void)runtime.Advance(scene, parameters, 0.0f);
     CHECK(runtime.CurrentStateName() == "Walk");
 }
 
@@ -191,11 +191,11 @@ TEST_CASE("animation conditions support typed booleans and numeric comparisons")
     AnimationParameterSet parameters;
     parameters.SetBool("grounded", true);
     parameters.SetFloat("speed", 1.5);
-    runtime.Advance(scene, parameters, 0.0f);
+    (void)runtime.Advance(scene, parameters, 0.0f);
     CHECK(runtime.CurrentStateName() == "Idle");
 
     parameters.SetFloat("speed", 2.0);
-    runtime.Advance(scene, parameters, 0.0f);
+    (void)runtime.Advance(scene, parameters, 0.0f);
     CHECK(runtime.CurrentStateName() == "Walk");
 }
 
