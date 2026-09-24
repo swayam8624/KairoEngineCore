@@ -96,6 +96,7 @@ if(KAIRO_ENGINE_CORE_BUILD_TESTS)
         tests/LogicStateTests.cpp
         tests/RuntimeSceneCommandsTests.cpp
         tests/WorldStreamingTests.cpp
+        tests/WorldStreamingScaleTests.cpp
         tests/SceneCompositionTests.cpp
         tests/SceneAudioSerializationV5Tests.cpp
         tests/AnimationRuntimeTests.cpp
