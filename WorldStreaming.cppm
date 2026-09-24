@@ -45,6 +45,9 @@ export namespace kairo::engine
         std::int32_t Priority = 0;
         bool AlwaysLoaded = false;
 
+        friend bool operator==(const WorldStreamingCellDescriptor&,
+            const WorldStreamingCellDescriptor&) = default;
+
         void Validate() const
         {
             if (ContentKey.empty() || ContentKey.size() > 4096u)
