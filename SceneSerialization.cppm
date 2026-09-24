@@ -562,7 +562,11 @@ export namespace kairo::engine
                     catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[1].Column, error.what()); }
                     try { (void)assets.Resolve(material); }
                     catch (const std::exception& error) { throw SceneFormatError(lineNumber, tokens[2].Column, error.what()); }
-                    scene.SetMeshRenderer(*current, { mesh, material, ParseBool(tokens[3], lineNumber) });
+                    MeshRendererComponent renderer;
+                    renderer.MeshAsset = mesh;
+                    renderer.MaterialAsset = material;
+                    renderer.Visible = ParseBool(tokens[3], lineNumber);
+                    scene.SetMeshRenderer(*current, std::move(renderer));
                 }
                 else
                 {
