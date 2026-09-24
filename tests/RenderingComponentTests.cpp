@@ -96,8 +96,12 @@ TEST_CASE("Scene selects authored cameras lights and environments deterministica
 
     scene.SetCamera(camera, CameraComponent{ .Primary = true });
     scene.SetLight(light, {});
-    scene.SetEnvironment(low, EnvironmentComponent{ .Priority = 2 });
-    scene.SetEnvironment(high, EnvironmentComponent{ .Priority = 9 });
+    EnvironmentComponent lowEnvironment;
+    lowEnvironment.Priority = 2;
+    scene.SetEnvironment(low, lowEnvironment);
+    EnvironmentComponent highEnvironment;
+    highEnvironment.Priority = 9;
+    scene.SetEnvironment(high, highEnvironment);
 
     CHECK(scene.PrimaryCamera() == camera);
     CHECK(scene.LightEntities() == std::vector<Entity>{ light });
