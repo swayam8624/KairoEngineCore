@@ -8,7 +8,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 
 # Immutable revisions used only outside a local workspace checkout. They track
 # merged component commits validated by the KairoGameEngine superbuild.
-set(KAIRO_ENGINE_CORE_MATH_REVISION b0e0bf14d81398c85d16011d6c897c782fa6068a)
+set(KAIRO_ENGINE_CORE_MATH_REVISION 06ef6c59f88541c80ff5867a1e7557e10b5cca77)
 set(KAIRO_ENGINE_CORE_ASSETS_REVISION 233a24954adbee34d746d91848786734b827a4ce)
 set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 1e27101b0e3fcac79aa51bf67b888c8783ad3b3f)
 
@@ -76,10 +76,16 @@ target_sources(KairoEngineCore PUBLIC FILE_SET CXX_MODULES BASE_DIRS ${CMAKE_CUR
 target_link_libraries(KairoEngineCore PUBLIC KairoMath KairoReflection KairoAssets)
 if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     # PropertyMetadata deliberately keeps appended fields defaulted so older
-    # aggregate initializers remain source-compatible. Restrict the diagnostic
-    # exception to the metadata registration TU rather than hiding it globally.
+    # aggregate initializers remain source-compatible. Clang 19+ distinguishes
+    # designated-field diagnostics; older Clang versions only know the general
+    # missing-field warning.
+    set(_kairo_reflection_warning_options -Wno-missing-field-initializers)
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19)
+        list(APPEND _kairo_reflection_warning_options
+            -Wno-missing-designated-field-initializers)
+    endif()
     set_source_files_properties(CoreReflection.cppm PROPERTIES
-        COMPILE_OPTIONS "-Wno-missing-field-initializers;-Wno-missing-designated-field-initializers")
+        COMPILE_OPTIONS "${_kairo_reflection_warning_options}")
 endif()
 set_property(TARGET KairoEngineCore PROPERTY COMPILE_WARNING_AS_ERROR ON)
 add_library(Kairo::EngineCore ALIAS KairoEngineCore)
