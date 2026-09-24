@@ -1,23 +1,19 @@
 # KairoEngineCore v1 Status
 
-**Frozen v1 source completion: 95%.**
+**Target: 95%. Current completion claim: UNVERIFIED.**
 
-- Wave: `C`
-- Frozen scope: `scene-runtime-v1`
-- Source gate: `complete`
-- Exact-head execution: `pending_external_runner`
-- Verification gate: `cmake-build-and-ctest`
-- Research track: `R2-support,R3`
-- Warning policy: `zero-kairo-owned-warnings`
+The earlier percentage claim has been retracted. A frozen scope or a populated
+`STATUS.yaml` is not evidence that this repository builds, runs, or satisfies
+its integration contract.
 
-The 95% score measures the bounded v1 implementation, integration contract,
-tests/diagnostics surface and documentation. Native/platform execution evidence
-is tracked separately and is never inferred from this score.
+Current rules:
 
-## Explicitly post-v1
+- `target_score: 95` is a target only.
+- `completion_score: unverified` remains until exact-head acceptance executes.
+- source/test failures block completion regardless of documentation state.
+- platform-gated behavior is not inferred from another host.
+- post-v1 exclusions may bound scope, but they cannot hide missing v1 behavior.
 
-- network replication
-- platform audio backend
-- general live-service runtime
-
-See `STATUS.yaml` for the machine-readable contract.
+Use the repository's real build/test gate and the KairoGameEngine portfolio
+acceptance runner. Do not cite this repository as 95% complete until the
+accepted exact-head evidence matches the current revision.
