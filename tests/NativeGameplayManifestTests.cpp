@@ -26,11 +26,46 @@ namespace
         NativeGameplayTypeInfo type;
         type.TypeName = "Mover";
         type.Properties = {
-            { "enabled", NativeGameplayPropertyType::Boolean, true },
-            { "speed", NativeGameplayPropertyType::Number, 1.0, true, 0.0, 100.0 },
-            { "label", NativeGameplayPropertyType::String, std::string("player") },
-            { "offset", NativeGameplayPropertyType::Vector3, kairo::foundation::math::Vec3d{0.0,0.0,0.0} },
-            { "target", NativeGameplayPropertyType::EntityReference, Entity{} }
+            {
+                .Name = "enabled",
+                .Type = NativeGameplayPropertyType::Boolean,
+                .DefaultValue = true,
+                .Exposed = true,
+                .Minimum = {},
+                .Maximum = {}
+            },
+            {
+                .Name = "speed",
+                .Type = NativeGameplayPropertyType::Number,
+                .DefaultValue = 1.0,
+                .Exposed = true,
+                .Minimum = 0.0,
+                .Maximum = 100.0
+            },
+            {
+                .Name = "label",
+                .Type = NativeGameplayPropertyType::String,
+                .DefaultValue = std::string("player"),
+                .Exposed = true,
+                .Minimum = {},
+                .Maximum = {}
+            },
+            {
+                .Name = "offset",
+                .Type = NativeGameplayPropertyType::Vector3,
+                .DefaultValue = kairo::foundation::math::Vec3d{ 0.0, 0.0, 0.0 },
+                .Exposed = true,
+                .Minimum = {},
+                .Maximum = {}
+            },
+            {
+                .Name = "target",
+                .Type = NativeGameplayPropertyType::EntityReference,
+                .DefaultValue = Entity{},
+                .Exposed = true,
+                .Minimum = {},
+                .Maximum = {}
+            }
         };
         registry.Register(type, [] { return std::make_unique<ManifestSystem>(); });
         return registry;
