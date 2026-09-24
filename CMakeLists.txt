@@ -26,8 +26,7 @@ if(NOT TARGET KairoReflection)
         include(FetchContent)
         FetchContent_Declare(KairoReflection
             GIT_REPOSITORY https://github.com/swayam8624/KairoReflection.git
-            GIT_TAG ${KAIRO_ENGINE_CORE_REFLECTION_REVISION}
-            GIT_SHALLOW TRUE)
+            GIT_TAG ${KAIRO_ENGINE_CORE_REFLECTION_REVISION})
         FetchContent_MakeAvailable(KairoReflection)
     endif()
 endif()
@@ -44,8 +43,7 @@ if(NOT TARGET KairoMath)
         include(FetchContent)
         FetchContent_Declare(KairoMath
             GIT_REPOSITORY https://github.com/swayam8624/KairoMath.git
-            GIT_TAG ${KAIRO_ENGINE_CORE_MATH_REVISION}
-            GIT_SHALLOW TRUE)
+            GIT_TAG ${KAIRO_ENGINE_CORE_MATH_REVISION})
         FetchContent_MakeAvailable(KairoMath)
     endif()
 endif()
