@@ -1,0 +1,13 @@
+schema: kairo.research-track.v1
+track: R3
+title: Transactional heterogeneous worlds
+state: hypothesis
+role: runtime_identity_and_atomic_world_commit
+problem: World edits can touch scene identity, streaming, gameplay and subsystem bindings; partial application can leave the runtime inconsistent.
+hypothesis: Stable runtime identity plus dependency-aware atomic world deltas can reduce touched state and rollback cost versus full reload while preserving exact post-state consistency.
+baselines: [full_world_reload, subsystem_local_reload, naive_delta_apply]
+workloads: [streamed_cell_replace, hierarchy_edit, gameplay_attachment_change, physics_shape_change]
+metrics: [update_latency_ms, touched_entity_count, rollback_latency_ms, consistency_failures, update_locality_ratio]
+ablations: [no_dependency_graph, no_atomic_commit, no_stable_identity]
+failure_cases: [cyclic_dependencies, failed_cell_parse, mid_transaction_failure]
+falsification: Reject if transactional deltas do not reduce touched state or recovery cost versus full reload while preserving exact state fingerprints.
