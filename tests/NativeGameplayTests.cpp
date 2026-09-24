@@ -75,7 +75,13 @@ TEST_CASE("Native gameplay property type mismatches fail before play")
     NativeGameplayRegistry registry;
     NativeGameplayTypeInfo type;
     type.TypeName = "Counter";
-    type.Properties.push_back({ "speed", NativeGameplayPropertyType::Number, 1.0 });
+    type.Properties.push_back({
+        .Name = "speed",
+        .Type = NativeGameplayPropertyType::Number,
+        .DefaultValue = 1.0,
+        .Exposed = true,
+        .Minimum = {},
+        .Maximum = {} });
     registry.Register(type, [] { return std::make_unique<CounterSystem>(); });
 
     Scene scene;
