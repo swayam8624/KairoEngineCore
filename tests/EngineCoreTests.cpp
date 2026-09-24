@@ -283,7 +283,7 @@ TEST_CASE("Scene serialization round trips authored components and persistent as
     const Entity cube = original.CreateEntityWithID({ 9u }, "Cube \"Hero\"");
     original.Transform(cube).Local.Translation = { 1.25f, -2.5f, 3.75f };
     original.Transform(cube).Local.Scale = { 2.0f, 0.5f, 4.0f };
-    original.SetMeshRenderer(cube, { { MeshAsset }, { MaterialAsset }, false });
+    original.SetMeshRenderer(cube, { { MeshAsset }, { MaterialAsset }, false, {} });
     const Entity camera = original.CreateEntityWithID({ 42u }, "Main Camera");
     original.SetCamera(camera, { 0.9f, 0.2f, 500.0f, true });
     original.SetLogic(cube, { { LogicAsset }, true });
@@ -522,7 +522,7 @@ TEST_CASE("Versioned input maps evaluate keyboard mouse and gamepad actions",
 
 TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngineCore][Components]")
 {
-    MeshRendererComponent mesh{ { MeshAsset }, { MaterialAsset }, true };
+    MeshRendererComponent mesh{ { MeshAsset }, { MaterialAsset }, true, {} };
     REQUIRE_NOTHROW(mesh.Validate());
     mesh.MaterialAsset = {};
     REQUIRE_THROWS(mesh.Validate());
@@ -539,8 +539,8 @@ TEST_CASE("Scene owns optional authored components and stable render extraction"
     const Entity visible = scene.CreateEntity("Visible");
     const Entity camera = scene.CreateEntity("Camera");
 
-    scene.SetMeshRenderer(hidden, { { MeshAsset }, { MaterialAsset }, false });
-    scene.SetMeshRenderer(visible, { { MeshAsset }, { MaterialAsset }, true });
+    scene.SetMeshRenderer(hidden, { { MeshAsset }, { MaterialAsset }, false, {} });
+    scene.SetMeshRenderer(visible, { { MeshAsset }, { MaterialAsset }, true, {} });
     scene.SetCamera(camera, CameraComponent{ .Primary = true });
     scene.SetRigidBody(visible, {});
     scene.SetCollider(visible, {});
@@ -553,7 +553,7 @@ TEST_CASE("Scene owns optional authored components and stable render extraction"
     CHECK(scene.Collider(visible).Shape == ColliderShape::Box);
     CHECK(scene.RenderableEntities() == std::vector<Entity>{ visible });
 
-    MeshRendererComponent invalid{ { MeshAsset }, {}, true };
+    MeshRendererComponent invalid{ { MeshAsset }, {}, true, {} };
     REQUIRE_THROWS_AS(scene.SetMeshRenderer(visible, invalid), std::invalid_argument);
     CHECK(scene.MeshRenderer(visible).MaterialAsset.ID == MaterialAsset);
 
