@@ -10,7 +10,7 @@ option(KAIRO_ENGINE_CORE_BUILD_TESTS "Build KairoEngineCore tests" ${PROJECT_IS_
 # merged component commits validated by the KairoGameEngine superbuild.
 set(KAIRO_ENGINE_CORE_MATH_REVISION b0e0bf14d81398c85d16011d6c897c782fa6068a)
 set(KAIRO_ENGINE_CORE_ASSETS_REVISION 233a24954adbee34d746d91848786734b827a4ce)
-set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 1e27101b0e3fcac79aa51bf67b888c8783ad3b3f
+set(KAIRO_ENGINE_CORE_REFLECTION_REVISION 1e27101b0e3fcac79aa51bf67b888c8783ad3b3f)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
     add_compile_options(-Wall -Wextra -Wpedantic -Wno-unused-parameter)
