@@ -1,3 +1,9 @@
+// TEACHING MAP — InputMap.cppm
+// Authored action/binding rules mapping raw input into gameplay commands. KairoPlayer and
+// Editor configure these through validated project scenes; input focus matters for UI text
+// fields.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 module;
 
 #include <algorithm>

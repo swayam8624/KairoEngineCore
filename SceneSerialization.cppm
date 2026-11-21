@@ -1,3 +1,9 @@
+// TEACHING MAP — SceneSerialization.cppm
+// Versioned scene parser/writer for persistent components and referenced AssetIDs. The file
+// format must validate bounds and avoid partial writes; runtime adapters cannot assume all
+// serialized paths are safe.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 module;
 
 #include <charconv>

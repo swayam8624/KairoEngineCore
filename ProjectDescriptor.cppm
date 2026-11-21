@@ -1,3 +1,8 @@
+// TEACHING MAP — ProjectDescriptor.cppm
+// Shared .kproject bootstrap contract for KairoHub, Editor and Player. Reads startup scene,
+// asset manifest, renderer policy and build profiles with safe path and version checks.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 module;
 
 #include <cstddef>

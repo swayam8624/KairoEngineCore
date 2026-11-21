@@ -1,3 +1,8 @@
+// TEACHING MAP — Input.cppm
+// Platform-neutral input state and event semantics. Player's native window input bridge and
+// Editor action routing feed this API; authored gameplay should not depend on GLFW details.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 module;
 
 #include <algorithm>

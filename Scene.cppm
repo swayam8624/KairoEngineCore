@@ -1,3 +1,8 @@
+// TEACHING MAP — Scene.cppm
+// Scene registry, hierarchy and component lifecycle. Editor commands mutate the authoritative
+// scene; RuntimeWorld and Player bind temporary physics/renderer resources separately.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 module;
 #include <algorithm>
 #include <cstddef>

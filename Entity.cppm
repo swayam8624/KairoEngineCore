@@ -1,3 +1,9 @@
+// TEACHING MAP — Entity.cppm
+// Stable entity identity used by Scene, serialization, runtime scene commands and editor
+// selection. Differentiate persistent scene IDs from process-local KairoECS generations and
+// physics body handles.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 module;
 #include <compare>
 #include <cstdint>
