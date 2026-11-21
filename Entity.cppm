@@ -1,3 +1,8 @@
+// SOURCE STUDY NOTE:
+// EngineCore scene-local numeric entity identity. Scene.cppm owns creation and lookup; unlike
+// KairoECS's generational Entity type it is not automatically a sparse-set component pool handle.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 #include <compare>
 #include <cstdint>
