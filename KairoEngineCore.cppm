@@ -1,3 +1,9 @@
+// TEACHING MAP — KairoEngineCore.cppm
+// Public C++23 entrypoint for platform-neutral project, scene, input, event, persistence and
+// runtime contracts. Rendering/physics are injected through KairoGameEngine bridges, not
+// owned by Core.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 export module Kairo.EngineCore;
 export import Kairo.Assets;
 export import Kairo.EngineCore.TextValidation;
