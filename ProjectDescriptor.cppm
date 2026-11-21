@@ -1,3 +1,4 @@
+// TEACHING MAP: The portable .kproject schema sits between KairoHub launcher, KairoEditor authoring, KairoAssets references and KairoPlayer runtime startup. Parsing and atomic saving must preserve security boundaries and version compatibility.
 module;
 
 #include <cstddef>
