@@ -26,6 +26,7 @@ export namespace kairo::engine
 {
     enum class ProjectBuildKind : std::uint8_t { Development, Release };
 
+    /// TEACHING METHOD: Convert typed build-profile enum to stable text labels shared by Editor, Hub and Player.
     [[nodiscard]] constexpr std::string_view Name(ProjectBuildKind kind) noexcept
     {
         return kind == ProjectBuildKind::Development ? "development" : "release";
@@ -45,6 +46,7 @@ export namespace kairo::engine
     struct ProjectDescriptor final
     {
         ProjectDescriptor() = default;
+    /// TEACHING METHOD: Construct a minimal project with named scene and asset manifest; additional validated settings supply input, backend and packaging defaults.
         ProjectDescriptor(std::string name, std::filesystem::path assetManifest,
             std::filesystem::path startupScene)
             : Name(std::move(name)), AssetManifest(std::move(assetManifest)),
@@ -92,11 +94,13 @@ export namespace kairo::engine
 
         using Token = FormatToken;
 
+    /// TEACHING METHOD: Apply bounded UTF-8 and syntax rules to a user-visible project name before writing it to disk.
         inline void ValidateProjectName(std::string_view name)
         {
             ValidateUtf8Text(name, { 1u, MaxProjectNameBytes, false, false }, "Project name");
         }
 
+    /// TEACHING METHOD: Validate one bounded config field; malformed text is a file-parsing error, not a renderer failure.
         inline void ValidateSetting(std::string_view value, std::string_view label)
         {
             ValidateUtf8Text(value, { 1u, MaxProjectSettingBytes, false, false }, label);
@@ -109,17 +113,20 @@ export namespace kairo::engine
             catch (const std::exception& error) { throw ProjectFormatError(line, token.Column, error.what()); }
         }
 
+    /// TEACHING METHOD: Split a descriptor statement into checked tokens including quoted strings, preserving line/column diagnostics.
         [[nodiscard]] inline std::vector<Token> Tokenize(std::string_view line, std::size_t lineNumber)
         {
             return TokenizeFormatLine<ProjectFormatError>(line, lineNumber);
         }
 
+    /// TEACHING METHOD: Fail a descriptor statement with a precise source location when it has the wrong token count.
         inline void RequireCount(const std::vector<Token>& tokens, std::size_t expected,
             std::size_t line, std::string_view statement)
         {
             RequireTokenCount<ProjectFormatError>(tokens, expected, line, statement);
         }
 
+    /// TEACHING METHOD: Escape authoring text for deterministic, parseable source serialization.
         [[nodiscard]] inline std::string Quote(std::string_view value)
         {
             return QuoteFormatText(value);
@@ -129,6 +136,7 @@ export namespace kairo::engine
     /// Input: project name and project-root-relative manifest/scene paths.
     /// Output: no value; throws std::invalid_argument on unsafe or ambiguous data.
     /// Task: centralize project invariants for creation, parsing, and saving.
+    /// TEACHING METHOD: Check full project cross-field invariants: unique paths/profiles/plugins, safe paths, recognized graphics backend and required file references.
     inline void ValidateProjectDescriptor(const ProjectDescriptor& descriptor)
     {
         using namespace project_format_detail;
@@ -171,6 +179,7 @@ export namespace kairo::engine
 
     /// Format: `kairo-project 1` followed by exactly one `name`, `assets`, and
     /// `startup-scene` statement. Unknown and duplicate statements are errors.
+    /// TEACHING METHOD: Parse version 1/2 descriptor text, enforce size/statement constraints, reject duplicates and translate into canonical ProjectDescriptor. Used by all project hosts.
     [[nodiscard]] inline ProjectDescriptor ParseProjectDescriptor(std::string_view source)
     {
         using namespace project_format_detail;
@@ -305,6 +314,7 @@ export namespace kairo::engine
     }
 
     /// Output: canonical, deterministic, diff-friendly project descriptor text.
+    /// TEACHING METHOD: Generate canonical version-2 project text after validation so Editor/Hub/Player interpret the same project file.
     [[nodiscard]] inline std::string SerializeProjectDescriptor(const ProjectDescriptor& descriptor)
     {
         using namespace project_format_detail;
@@ -326,6 +336,7 @@ export namespace kairo::engine
         return source;
     }
 
+    /// TEACHING METHOD: Read a bounded .kproject from disk then reuse the common parser and diagnostics.
     [[nodiscard]] inline ProjectDescriptor LoadProjectDescriptor(const std::filesystem::path& path)
     {
         return ParseProjectDescriptor(LoadBoundedTextFile(path,
@@ -334,6 +345,7 @@ export namespace kairo::engine
 
     /// Task: flush a same-directory temporary and atomically replace the prior
     /// descriptor, preserving it when serialization or writing fails.
+    /// TEACHING METHOD: Write a canonical descriptor through safe atomic file replacement, preserving previous valid configuration on write failures.
     inline void SaveProjectDescriptor(const std::filesystem::path& path, const ProjectDescriptor& descriptor)
     {
         SaveTextFileAtomically(path, SerializeProjectDescriptor(descriptor), "Kairo project descriptor");
