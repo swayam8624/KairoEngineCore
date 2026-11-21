@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Worker-pool execution service: promises/futures and idle waits are runtime utilities,
+// not ownership of scene, GPU, or physics resources. A task capturing a referenced
+// object must finish before that object is destroyed; Application/host owns these lifetimes.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <condition_variable>
