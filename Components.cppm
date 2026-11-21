@@ -1,3 +1,9 @@
+// TEACHING MAP — Components.cppm
+// Core component declarations and scene metadata. KairoRenderer consumes adapted render
+// components, PhysicsEngine receives collider descriptors, while Scene owns persistent
+// component state.
+// See READING_ORDER.md and sibling Player/Renderer/Physics interfaces.
+
 module;
 #include <string>
 export module Kairo.EngineCore.Components;
