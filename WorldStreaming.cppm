@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Runtime world-cell streaming and active entity lifecycle. KairoGameEngine RuntimeWorldStreamingBridge
+// maps these events to renderer and physics resources; unloading must invalidate transient handles
+// safely.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <algorithm>

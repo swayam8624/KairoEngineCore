@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Portable .kproject project bootstrap contract. KairoGameEngine RuntimeProject uses this before
+// KairoAssets manifest, scene and input loading; validated paths are a trust boundary for user-supplied
+// projects.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <cstddef>
@@ -128,6 +134,9 @@ export namespace kairo::engine
     /// Input: project name and project-root-relative manifest/scene paths.
     /// Output: no value; throws std::invalid_argument on unsafe or ambiguous data.
     /// Task: centralize project invariants for creation, parsing, and saving.
+    /// Shared project trust boundary for KairoHub, Editor and Player. Checks
+    /// names, referenced portable paths and mutually incompatible settings
+    /// before a descriptor can be serialized or used to open project files.
     inline void ValidateProjectDescriptor(const ProjectDescriptor& descriptor)
     {
         using namespace project_format_detail;
@@ -170,6 +179,10 @@ export namespace kairo::engine
 
     /// Format: `kairo-project 1` followed by exactly one `name`, `assets`, and
     /// `startup-scene` statement. Unknown and duplicate statements are errors.
+    /// Parse bounded on-disk project text into an in-memory descriptor.
+    /// This validates the 1 MiB source limit, version/header and required
+    /// statements; callers should resolve referenced files relative to the
+    /// validated project root rather than the current working directory.
     [[nodiscard]] inline ProjectDescriptor ParseProjectDescriptor(std::string_view source)
     {
         using namespace project_format_detail;
@@ -304,6 +317,9 @@ export namespace kairo::engine
     }
 
     /// Output: canonical, deterministic, diff-friendly project descriptor text.
+    /// Canonical writer for the versioned .kproject format. Validate first;
+    /// normalize portable paths so Hub, Editor and Player agree on the same
+    /// authoring contract instead of inventing incompatible serializers.
     [[nodiscard]] inline std::string SerializeProjectDescriptor(const ProjectDescriptor& descriptor)
     {
         using namespace project_format_detail;
@@ -325,6 +341,9 @@ export namespace kairo::engine
         return source;
     }
 
+    /// Disk entry point: bounded text read -> ParseProjectDescriptor.
+    /// Runtime/KairoPlayer/RuntimeProject.cppm resolves the descriptor path
+    /// and performs later project-root containment checks for referenced files.
     [[nodiscard]] inline ProjectDescriptor LoadProjectDescriptor(const std::filesystem::path& path)
     {
         return ParseProjectDescriptor(LoadBoundedTextFile(path,
@@ -333,6 +352,8 @@ export namespace kairo::engine
 
     /// Task: flush a same-directory temporary and atomically replace the prior
     /// descriptor, preserving it when serialization or writing fails.
+    /// Serialize then atomically save via TextFormat. A partially written
+    /// descriptor must not overwrite the last usable project configuration.
     inline void SaveProjectDescriptor(const std::filesystem::path& path, const ProjectDescriptor& descriptor)
     {
         SaveTextFileAtomically(path, SerializeProjectDescriptor(descriptor), "Kairo project descriptor");

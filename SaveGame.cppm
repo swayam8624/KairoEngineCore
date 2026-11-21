@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Durable runtime save/load state, distinct from authoring-time scene/project files. Compare
+// RuntimeWorld/Scene serialization and KairoGameEngine RuntimeSaveGameBridge to avoid recording
+// process-local physics or GPU handles.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <algorithm>

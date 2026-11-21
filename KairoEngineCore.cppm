@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Umbrella public module gathering the platform-neutral EngineCore API. External GameEngine
+// player/editor code imports this interface; persistence, scene, input and gameplay implementations
+// live in separate .cppm modules.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 export module Kairo.EngineCore;
 export import Kairo.Assets;
 export import Kairo.EngineCore.TextValidation;

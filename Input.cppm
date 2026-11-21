@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Host-facing input key/mouse state and event normalization. InputMap.cppm resolves these raw codes
+// into named game actions; KairoGameEngine RuntimeInputBridge presents the result to player/gameplay
+// code.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <algorithm>
