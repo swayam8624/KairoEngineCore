@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Portable .kproject project bootstrap contract. KairoGameEngine RuntimeProject uses this before
+// KairoAssets manifest, scene and input loading; validated paths are a trust boundary for user-supplied
+// projects.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <cstddef>
