@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Persisted semantic action mapping from low-level InputState to button/axis meanings. KairoPlayer
+// loads this through RuntimeProject and maps it through RuntimeInputBridge for controller/gameplay
+// logic.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 
 #include <algorithm>
