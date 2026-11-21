@@ -79,6 +79,9 @@ export namespace kairo::engine
         static constexpr std::size_t MaximumActions = 256u;
         static constexpr std::size_t MaximumBindings = 2048u;
 
+        /// Register an action's semantic name and value type before bindings
+        /// are added. RuntimeProject loads this map; RuntimeInputBridge exposes
+        /// the resulting named actions to player controllers and game logic.
         void AddAction(InputActionDefinition action)
         {
             ValidateUtf8Text(action.Name, { 1u, 64u, false, false }, "Input action name");
@@ -87,6 +90,9 @@ export namespace kairo::engine
             m_Actions.push_back(std::move(action));
         }
 
+        /// Reject references to unregistered actions, invalid devices/types
+        /// and over-capacity maps *before* growing the binding list. This
+        /// prevents user project config from creating impossible input states.
         void AddBinding(InputBinding binding)
         {
             const auto* action = FindAction(binding.Action);
@@ -104,6 +110,9 @@ export namespace kairo::engine
             return found == m_Actions.end() ? nullptr : &*found;
         }
 
+        /// Audit the full authored mapping rather than an isolated binding:
+        /// each action must have at least one valid device binding. The
+        /// project loader should fail on inconsistent control definitions.
         void Validate() const
         {
             std::unordered_set<std::string> bound;
@@ -125,6 +134,9 @@ export namespace kairo::engine
         /// codes. Multiple bindings combine additively for axes and as an OR
         /// for button state. Analog deadzones are radially independent per
         /// source axis and rescaled so post-deadzone range remains [0,1].
+        /// Combine configured bindings with the current/previous host input
+        /// snapshot for one action and gamepad slot. Report semantic button/
+        /// axis values, not raw keyboard codes, to the gameplay runtime.
         [[nodiscard]] InputActionState Evaluate(
             std::string_view actionName, const InputState& input, std::size_t gamepad = 0u) const
         {
@@ -357,6 +369,9 @@ export namespace kairo::engine
         throw std::invalid_argument("Input binding control code is unsupported for its device.");
     }
 
+    /// Parse bounded .kinput project text and perform binding validation.
+    /// Keep this parser independent of platform events or a native window;
+    /// InputState records actual host input at runtime.
     [[nodiscard]] inline InputActionMap ParseInputActionMap(std::string_view source)
     {
         using namespace input_map_detail;
