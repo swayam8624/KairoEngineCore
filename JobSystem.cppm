@@ -35,6 +35,9 @@ export namespace kairo::engine
     class JobSystem final
     {
     public:
+        /// 0 requests hardware_concurrency with a one-worker fallback;
+        /// the maximum of 256 avoids runaway thread creation. WorkerLoop
+        /// consumes jobs submitted through Submit until shutdown.
         explicit JobSystem(std::size_t workerCount = 0u)
         {
             if (workerCount == 0u)
@@ -64,6 +67,9 @@ export namespace kairo::engine
         /// the future rather than terminating a worker thread.
         template<typename Callable>
             requires std::invocable<std::decay_t<Callable>&>
+        /// Produce one future per no-argument task; a stored shared callable
+        /// supports move-only captures. The queue owns the job until a worker
+        /// starts it, but the caller still owns objects referenced by captures.
         [[nodiscard]] auto Submit(Callable&& callable) -> std::future<std::invoke_result_t<std::decay_t<Callable>&>>
         {
             using StoredCallable = std::decay_t<Callable>;
@@ -106,6 +112,9 @@ export namespace kairo::engine
         /// Task: wait until the pending queue and currently running jobs are
         /// both empty. It must not be called by a worker that owns unfinished
         /// work, because that would create an application-level deadlock.
+        /// Block until the queue is empty *and* no worker is active. Useful
+        /// before releasing scene/importer data captured in queued jobs;
+        /// waiting on only task-queue emptiness is insufficient.
         void WaitIdle()
         {
             std::unique_lock lock(m_Mutex);
@@ -123,6 +132,9 @@ export namespace kairo::engine
         std::size_t m_ActiveWorkers = 0u;
         bool m_Stopping = false;
 
+        /// Worker coordination: wait on condition variable, claim one job,
+        /// execute it, decrement active count and notify the idle waiters.
+        /// Submit places exceptions into futures rather than leaking them.
         void WorkerLoop()
         {
             for (;;)
