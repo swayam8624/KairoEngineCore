@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Scene component/identity owner. Handles EngineCore Entities and components without requiring a
+// renderer or physics backend; SceneSerialization and RuntimeSceneCommands use this API, while
+// KairoGameEngine adapters translate state to runtime systems.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 #include <algorithm>
 #include <cstddef>
