@@ -1,3 +1,9 @@
+// SOURCE STUDY NOTE:
+// Platform-neutral application/layer orchestration. External host feeds Event and InputState,
+// Application drives Scene/Layer lifecycle, and renderer/physics systems are injected through layers
+// rather than imported directly.
+// Related modules and exercises: docs/SOURCE_READING_ORDER.md.
+
 module;
 #include <memory>
 #include <stdexcept>
