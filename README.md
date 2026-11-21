@@ -1,5 +1,7 @@
 # KairoEngineCore
 
+> **Teach yourself the implementation:** Follow the [source reading-order guide](docs/SOURCE_READING_ORDER.md) from Entity and Scene through Application/Input, project persistence, streaming, gameplay, and KairoGameEngine integration. The [MIT License](LICENSE) permits learning, reuse, and further development of original source; third-party components retain their terms.
+
 `KairoEngineCore` is the platform-neutral scene and application layer between
 Kairo's renderer, physics engine, and future editor. It intentionally owns no
 GLFW/Vulkan or physics world; host applications inject those systems.
