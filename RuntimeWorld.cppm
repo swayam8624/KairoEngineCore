@@ -94,6 +94,10 @@ export namespace kairo::engine
             return result;
         }
 
+        // Reserve a temporary ticket for an entity that does not yet
+        // exist. The ticket only identifies the pending request in the
+        // *next* commit's Spawned results, not a durable Entity ID.
+        // UINT64_MAX overflow must never silently recycle a ticket.
         [[nodiscard]] RuntimeSpawnTicket QueueSpawn(RuntimeSpawnRequest request)
         {
             if (m_NextTicket == 0u)
@@ -106,10 +110,17 @@ export namespace kairo::engine
         // Destruction is deferred until commit. Systems should not
         // assume a queued destroy immediately invalidates an Entity.
         void QueueDestroy(Entity entity) { m_Commands.emplace_back(DestroyCommand{ entity }); }
+        // Append semantic intent, preserving submission order. The
+        // authoritative Scene remains unchanged until Commit; a
+        // subsequent queued operation can observe this rename only
+        // when both apply to the candidate scene during Commit.
         void QueueRename(Entity entity, std::string name)
         {
             m_Commands.emplace_back(RenameCommand{ entity, std::move(name) });
         }
+        // Queue a *local* TRS edit, not a world-space matrix or live
+        // PhysicsWorld pose. Host adapters reconcile the published
+        // Scene revision with their runtime handles after Commit.
         void QueueSetTransform(Entity entity, kairo::foundation::math::Transformf local)
         {
             m_Commands.emplace_back(TransformCommand{ entity, std::move(local) });
@@ -118,6 +129,9 @@ export namespace kairo::engine
         {
             m_Commands.emplace_back(EnabledCommand{ entity, enabled });
         }
+        // Defer hierarchy edits so systems can safely iterate the
+        // current read-only scene. Scene::SetParent checks live IDs
+        // and cycles when this command actually executes in Commit.
         void QueueSetParent(Entity entity, std::optional<Entity> parent)
         {
             m_Commands.emplace_back(ParentCommand{ entity, parent });
@@ -133,12 +147,22 @@ export namespace kairo::engine
 
         void DiscardPending() noexcept { m_Commands.clear(); }
 
+        // Strong all-or-nothing publication: copy the authoritative
+        // scene, replay queued variant commands in submission order
+        // against *that candidate*, then move-assign it on success.
+        // If any Apply throws, the live scene/revision are preserved;
+        // pending commands remain queued so caller can DiscardPending
+        // or correct the batch. A successful commit returns ticket IDs.
         [[nodiscard]] RuntimeCommitResult Commit()
         {
             if (m_Commands.empty()) return { m_Revision, {}, {} };
             if (m_Revision == std::numeric_limits<std::uint64_t>::max())
                 throw std::overflow_error("Runtime world revision is exhausted.");
 
+            // Copy before mutation, rather than rolling back partially
+            // completed edits. This costs an entire scene copy per
+            // nonempty batch: benchmark under large world streaming
+            // loads before claiming O(number of changes) commits.
             Scene candidate = m_Scene;
             RuntimeCommitResult result;
             for (const Command& command : m_Commands)
@@ -154,6 +178,10 @@ export namespace kairo::engine
         // Replace the whole authoritative scene and invalidate any
         // external cached component references/adapter mappings that
         // were based on the previous scene revision.
+        // Whole-scene replacement invalidates all external pointers
+        // and cached component/physics/render adapter bindings.
+        // Clear queued old-scene edits and increment revision exactly
+        // once; ticket allocation history is not a persistent ID.
         void Replace(Scene scene)
         {
             if (m_Revision == std::numeric_limits<std::uint64_t>::max())
@@ -180,6 +208,9 @@ export namespace kairo::engine
         std::uint64_t m_Revision = 0u;
         std::uint64_t m_NextTicket = 1u;
 
+        // Allocate actual Entity and initialize local transform,
+        // enabled state, layer, tags and optional parent. Only after
+        // success bind the request's RuntimeSpawnTicket to its final ID.
         static void Apply(Scene& scene, const SpawnCommand& command, RuntimeCommitResult& result)
         {
             Entity entity = scene.CreateEntity(command.Request.Name);
@@ -192,6 +223,10 @@ export namespace kairo::engine
             result.Spawned.emplace_back(command.Ticket, entity);
         }
 
+        // Require a live target, then erase it and its descendants
+        // from the candidate Scene. Keep source IDs in result for
+        // host adapter invalidation; this does not destroy GPU
+        // buffers or PhysicsWorld bodies by itself.
         static void Apply(Scene& scene, const DestroyCommand& command, RuntimeCommitResult& result)
         {
             if (!scene.Contains(command.Target))
