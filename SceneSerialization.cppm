@@ -1,3 +1,17 @@
+// TEACHING MODULE: Portable text serialization boundary for EngineCore
+// scenes and typed asset references. Scene owns entity/component semantics;
+// AssetRegistry checks referenced authored assets. Parser errors carry
+// source locations, and a candidate Scene is created before replacing
+// the caller's active scene during LoadScene.
+//
+// Parent references require a second validation/resolution phase: a
+// serialization order is not a valid substitute for hierarchy constraints.
+// Files are bounded to protect memory/time and SaveScene stages a sibling
+// temporary file before replacement. Do not serialize Vulkan mesh handles
+// or transient PhysicsWorld solver caches as persistent Entity components.
+//
+// SceneSerializationV5 extends the format; inspect both modules and their
+// dedicated tests when changing compatibility or audio fields.
 module;
 
 #include <charconv>
@@ -396,7 +410,12 @@ export namespace kairo::engine
     /// Task: deserialize authored state with deterministic behavior and exact
     /// line/column diagnostics. Typed physics descriptors remain independent
     /// of process-local PhysicsWorld handles.
-    [[nodiscard]] inline Scene ParseScene(std::string_view source, const kairo::assets::AssetRegistry& assets)
+    // Parse all records against provided asset metadata and create a
+    // detached candidate Scene. Resolve delayed hierarchy links only
+    // after records exist, then validate rather than partially mutating
+    // a live project on malformed input.
+    [[nodiscard]] inline Scene ParseScene(
+std::string_view source, const kairo::assets::AssetRegistry& assets)
     {
         using namespace scene_format_detail;
         if (source.size() > MaxSceneBytes) throw std::length_error("Kairo scene exceeds the 64 MiB safety limit.");
@@ -1001,7 +1020,11 @@ export namespace kairo::engine
         return output.str();
     }
 
-    inline void LoadScene(const std::filesystem::path& path, const kairo::assets::AssetRegistry& assets, Scene& destination)
+    // Load a bounded file and publish a fully parsed scene only after
+    // validation. The caller remains responsible for updating any
+    // renderer/physics adapters bound to the previous scene.
+    inline void LoadScene(
+const std::filesystem::path& path, const kairo::assets::AssetRegistry& assets, Scene& destination)
     {
         std::error_code error;
         const std::uintmax_t bytes = std::filesystem::file_size(path, error);
@@ -1018,7 +1041,10 @@ export namespace kairo::engine
 
     /// Task: preserve the prior scene on write failure by flushing a same-directory
     /// temporary and replacing the destination with one host atomic rename.
-    inline void SaveScene(const std::filesystem::path& path, const Scene& scene,
+    // Persist the fully serialized CPU scene via a staged file. This
+    // does not save native renderer allocations or runtime solver state.
+    inline void SaveScene(
+const std::filesystem::path& path, const Scene& scene,
         const kairo::assets::AssetRegistry& assets)
     {
         const std::filesystem::path parent = path.has_parent_path() ? path.parent_path() : std::filesystem::path(".");
