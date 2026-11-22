@@ -1,3 +1,14 @@
+// TEACHING MODULE: EngineCore::Scene is the authoritative *authored/runtime
+// component model*, independent of Editor selection and any GPU/physics
+// allocation. Stable Entity IDs index Name, Transform and optional render,
+// physics, audio and logic descriptors; renderer/physics bridges translate
+// those descriptors into their own native/runtime handles.
+//
+// Parent-child hierarchy is an authoring transform relationship, not
+// proof of physics constraint ownership. SceneSerialization recreates
+// persistent records; RuntimeWorld may queue mutations and validate a
+// candidate scene before publication. Avoid exposing references across
+// entity destruction and reparenting. No GLFW or Vulkan code lives here.
 module;
 #include <algorithm>
 #include <cstddef>
@@ -21,6 +32,8 @@ export namespace kairo::engine
     /// Input: named entity requests and component updates. Output: a stable
     /// scene registry. Task: own IDs/components without selecting a renderer,
     /// physics backend, or ECS storage library prematurely.
+    // Scene is an owned registry, not a global ECS singleton. Host code
+    // decides when to load/replace it and which systems consume changes.
     class Scene final
     {
     public:
@@ -90,6 +103,9 @@ export namespace kairo::engine
         /// preservation is an editor command because it requires an explicit
         /// transform policy. Self-parenting and ancestor cycles are rejected
         /// before either side of the relationship changes.
+        // Preserve acyclic parentage and entity liveness. Reparenting
+        // changes hierarchy semantics consumed by transform composition
+        // and the Editor tree; it is not a physics-joint operation.
         void SetParent(Entity child, std::optional<Entity> parent)
         {
             Record& childRecord = RecordFor(child);
@@ -188,6 +204,8 @@ export namespace kairo::engine
         /// Output: stores or replaces that entity's mesh renderer component.
         /// Task: make visible scene objects discoverable by renderer adapters
         /// while keeping asset loading and GPU ownership outside EngineCore.
+        // Record stable authored mesh/material references only.
+        // Renderer bridges later resolve these to uploaded runtime handles.
         void SetMeshRenderer(Entity entity, MeshRendererComponent component)
         {
             Record& record = RecordFor(entity);
@@ -507,6 +525,9 @@ export namespace kairo::engine
 
         /// Stores renderer-independent authored physics after validating it;
         /// runtime world handles are created by a play-mode adapter.
+        // Scene describes requested physics behavior; a separate
+        // PhysicsWorld adapter creates real bodies/colliders and owns
+        // the solver/collision cache lifetime.
         void SetRigidBody(Entity entity, RigidBodyComponent component)
         {
             Record& record = RecordFor(entity);
