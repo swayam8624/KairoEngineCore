@@ -1,3 +1,16 @@
+// TEACHING ENTRY POINT: Public C++23 umbrella for engine-authored scene,
+// project bootstrap, deterministic runtime state, input, time and gameplay
+// contracts. It intentionally owns neither a Vulkan/Metal graphics device
+// nor a PhysicsWorld: Player/Editor adapters instantiate and translate those.
+//
+// A typical lifecycle: ProjectDescriptor loads validated .kproject paths,
+// AssetRegistry resolves persistent content IDs, Scene owns Entity/component
+// records, RuntimeWorld queues state changes until commit, SceneSerialization
+// persists that state, and the host feeds Application/production systems.
+// KairoRenderer and PhysicsEngine consume adapted snapshots separately.
+//
+// `export import` republishes an API; import order is not runtime call order.
+// Read docs/SOURCE_READING_ORDER.md and the matching component tests.
 export module Kairo.EngineCore;
 export import Kairo.Assets;
 export import Kairo.EngineCore.TextValidation;
