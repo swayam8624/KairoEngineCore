@@ -1,6 +1,6 @@
 # KairoEngineCore
 
-**Learn through the source:** [linked reading curriculum](docs/SOURCE_READING_ORDER.md) · [project → scene → runtime lifecycle](docs/SCENE_RUNTIME_WALKTHROUGH.md).
+**Learn through the source:** [linked reading curriculum](docs/SOURCE_READING_ORDER.md) · [project → scene → runtime lifecycle](docs/SCENE_RUNTIME_WALKTHROUGH.md) · [Worked entity hierarchy, transactions and scene persistence](docs/AUTHORED_SCENE_AND_RUNTIME_TRANSACTION_LAB.md).
 
 `KairoEngineCore` is the platform-neutral scene and application layer between
 Kairo's renderer, physics engine, and editor. It intentionally owns no
