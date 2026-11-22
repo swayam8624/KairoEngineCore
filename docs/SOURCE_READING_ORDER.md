@@ -9,6 +9,8 @@ Read these source links in order, identify the caller and callee for each public
 Start with the [complete project-to-runtime lifecycle walkthrough](SCENE_RUNTIME_WALKTHROUGH.md).
 The stages below form a learning curriculum, not CMake dependency order.
 
+**Practice with real source:** [Stable IDs, world transforms, deferred command failures and versioned saves](AUTHORED_SCENE_AND_RUNTIME_TRANSACTION_LAB.md). This guide distinguishes authored scene objects from the ECS, physics and graphics runtime handles.
+
 ### Stage A — Project bootstrap and authoritative scene
 
 1. [`CMakeLists.txt`](../CMakeLists.txt), [`KairoEngineCore.cppm`](../KairoEngineCore.cppm): build/modules and exported API boundaries.
@@ -51,8 +53,8 @@ authored .kscene persistence from runtime save-game state.
 
 ### Stage D — Host integration and validation
 
-20. Follow KairoGameEngine's [shared render bridge](https://github.com/swayam8624/KairoGameEngine/blob/docs/teaching-walkthrough-20261121/Runtime/KairoRealtimeRenderBridge/RealtimeSceneBridge.cppm) and physics bridges to convert authored descriptors into native runtime state.
-21. Use [KairoEditor's source guide](https://github.com/swayam8624/KairoEditor/blob/docs/teaching-walkthrough-20261121/docs/SOURCE_READING_ORDER.md) to trace the authoring side of the same .kproject/.kscene format.
+20. Follow KairoGameEngine's [shared render bridge](https://github.com/swayam8624/KairoGameEngine/blob/main/Runtime/KairoRealtimeRenderBridge/RealtimeSceneBridge.cppm) and physics bridges to convert authored descriptors into native runtime state.
+21. Use [KairoEditor's source guide](https://github.com/swayam8624/KairoEditor/blob/main/docs/SOURCE_READING_ORDER.md) to trace the authoring side of the same .kproject/.kscene format.
 22. Inspect remaining subsystem tests in the inventory below and record exact-head build/test results before claiming a verified host.
 
 ## Repository integration and API contracts
