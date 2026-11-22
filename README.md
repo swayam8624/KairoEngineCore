@@ -1,5 +1,7 @@
 # KairoEngineCore
 
+**Cross-repository integration lab:** [Authored Entity and asset IDs through shared renderer/GPU lifetime](https://github.com/swayam8624/KairoGameEngine/blob/main/docs/ASSET_SCENE_TO_GPU_LIFETIME_LAB.md). Read the authored/CPU contracts before following the native GPU backend; source inspection is not a native test result.
+
 **Learn through the source:** [linked reading curriculum](docs/SOURCE_READING_ORDER.md) · [project → scene → runtime lifecycle](docs/SCENE_RUNTIME_WALKTHROUGH.md) · [Worked entity hierarchy, transactions and scene persistence](docs/AUTHORED_SCENE_AND_RUNTIME_TRANSACTION_LAB.md).
 
 `KairoEngineCore` is the platform-neutral scene and application layer between
