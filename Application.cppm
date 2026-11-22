@@ -1,3 +1,13 @@
+// TEACHING MODULE: Platform-neutral frame orchestration.
+// The native Player/Editor host pumps OS events and owns window/renderer
+// lifetime, while Application owns a Scene, input snapshots and Layer
+// objects. RunFrame advances the clock and calls injected layer callbacks.
+// A Layer may bridge to PhysicsEngine/Renderer; Application itself should
+// not import their native device or solver APIs.
+//
+// Events travel through a common typed interface, not raw GLFW callbacks.
+// Keep frame ordering (input snapshots, updates and event dispatch)
+// consistent when implementing new platform hosts.
 module;
 #include <memory>
 #include <stdexcept>
@@ -14,6 +24,8 @@ export namespace kairo::engine
     /// Application owns scene/layer lifetime while platform hosts feed events
     /// and call RunFrame. Renderer and physics are injected as concrete layers,
     /// keeping EngineCore testable and platform neutral.
+    // Application owns layers through unique_ptr. OnAttach is called
+    // when a layer is pushed; the host supplies native services separately.
     class Application final
     {
     public:
