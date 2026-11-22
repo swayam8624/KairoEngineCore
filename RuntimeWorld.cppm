@@ -1,3 +1,13 @@
+// TEACHING MODULE: RuntimeWorld wraps Scene with a *deferred command queue*.
+// Gameplay systems request spawns, destroys, parenting, tags and transforms
+// without mutating the authoritative Scene during iteration. A Commit
+// applies the queued changes and reports spawn tickets/entity results.
+//
+// RuntimeSpawnTicket is a temporary correlation token, not a durable
+// serialized Entity ID. Source scene ownership stays here; render, physics
+// and audio adapters are notified/reconciled separately by the host.
+// Compare tests/RuntimeSceneCommandsTests.cpp before changing commit
+// atomicity, command ordering or failure behavior.
 module;
 
 #include <algorithm>
@@ -20,6 +30,8 @@ import Kairo.Foundation.Math;
 
 export namespace kairo::engine
 {
+    // Match a queued spawn request with its eventual allocated Entity.
+    // Do not persist a ticket in a .kscene or use it as a physics body ID.
     struct RuntimeSpawnTicket final
     {
         std::uint64_t Value = 0u;
@@ -55,6 +67,8 @@ export namespace kairo::engine
     /// Structural mutations are queued and applied to a copy. A failing command
     /// leaves both the live scene and its revision unchanged, which prevents a
     /// half-spawned gameplay frame from leaking into rendering or physics.
+    // Owns the live Scene plus a pending mutation log. Systems that
+    // read scene data during a frame need one clear commit boundary.
     class RuntimeWorld final
     {
     public:
@@ -89,6 +103,8 @@ export namespace kairo::engine
             return ticket;
         }
 
+        // Destruction is deferred until commit. Systems should not
+        // assume a queued destroy immediately invalidates an Entity.
         void QueueDestroy(Entity entity) { m_Commands.emplace_back(DestroyCommand{ entity }); }
         void QueueRename(Entity entity, std::string name)
         {
@@ -135,6 +151,9 @@ export namespace kairo::engine
             return result;
         }
 
+        // Replace the whole authoritative scene and invalidate any
+        // external cached component references/adapter mappings that
+        // were based on the previous scene revision.
         void Replace(Scene scene)
         {
             if (m_Revision == std::numeric_limits<std::uint64_t>::max())
