@@ -532,6 +532,9 @@ TEST_CASE("Runtime components reject invalid public configuration", "[KairoEngin
     REQUIRE_THROWS(camera.Validate());
 }
 
+// TEACHING TEST: EngineCore retains persistent MeshAsset/MaterialAsset IDs but no
+// GPU allocations. Hidden mesh is skipped, invalid component mutation preserves
+// prior value, and removing MeshRenderer makes later access throw.
 TEST_CASE("Scene owns optional authored components and stable render extraction", "[KairoEngineCore][Scene][Components]")
 {
     Scene scene;
