@@ -1,4 +1,13 @@
-// TEACHING MAP: The portable .kproject schema sits between KairoHub launcher, KairoEditor authoring, KairoAssets references and KairoPlayer runtime startup. Parsing and atomic saving must preserve security boundaries and version compatibility.
+// TEACHING MAP: .kproject is the *shared portable bootstrap contract*
+// for Hub, Editor, build tooling and Player. It names startup scene, asset
+// manifest, input map, graphics backend policy and build profiles without
+// owning renderer or OS window initialization.
+//
+// ValidateProjectDescriptor rejects unsafe/ambiguous paths before a host
+// trusts them; Load and Save use bounded text and atomic-file helpers.
+// Selection of an actual compiled Vulkan/Metal/D3D12/OpenGL backend belongs
+// to RendererRuntime, not the descriptor parser. V1/V2 compatibility must
+// be evaluated in ProjectDescriptorTests before changing format values.
 module;
 
 #include <cstddef>
