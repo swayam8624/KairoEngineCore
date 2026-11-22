@@ -37,6 +37,10 @@ export namespace kairo::engine
     class Scene final
     {
     public:
+        // Allocate the next scene-local stable ID; zero is invalid.
+        // The cursor does not wrap: exhausting uint32_t IDs is
+        // reported rather than allowing two authored entities to
+        // silently share identity during scene save/reload.
         [[nodiscard]] Entity CreateEntity(std::string name = "Entity")
         {
             if (m_Next == 0u)
@@ -51,6 +55,10 @@ export namespace kairo::engine
         /// Degeneracy: zero and duplicate IDs are rejected; restoring an ID at
         /// or above the allocation cursor advances that cursor without wrapping
         /// into the reserved invalid ID.
+        // Restore the *requested* serialized ID instead of assigning
+        // one from file traversal order. Reject zero/duplicate IDs;
+        // advance the allocation cursor beyond an imported maximum.
+        // SceneSerialization uses this before resolving parent links.
         [[nodiscard]] Entity CreateEntityWithID(Entity id, std::string name = "Entity")
         {
             if (!id) throw std::invalid_argument("A scene entity ID cannot be zero.");
@@ -66,6 +74,11 @@ export namespace kairo::engine
         /// Destroys an entity and its complete descendant subtree. Recursive
         /// ownership prevents dangling hierarchy references; an iterative walk
         /// avoids stack overflow for deeply nested imported scenes.
+        // Remove root's link from its parent, then collect and erase
+        // the entire subtree iteratively, avoiding recursive-call
+        // depth limits for imported hierarchies. Every external
+        // Editor selection, ECS mirror and physics/render adapter must
+        // invalidate cached references to these destroyed entity IDs.
         void DestroyEntity(Entity entity)
         {
             Record& root = RecordFor(entity);
@@ -86,6 +99,9 @@ export namespace kairo::engine
         /// Output: entity IDs in deterministic ascending creation order.
         /// Task: support hierarchy, serialization, and system iteration without
         /// exposing the scene's component storage implementation.
+        // Return detached sorted IDs rather than hash-map iteration
+        // order. This is critical for reproducible serialization,
+        // stable editor hierarchy navigation and deterministic tests.
         [[nodiscard]] std::vector<Entity> Entities() const
         {
             std::vector<Entity> entities;
@@ -106,6 +122,11 @@ export namespace kairo::engine
         // Preserve acyclic parentage and entity liveness. Reparenting
         // changes hierarchy semantics consumed by transform composition
         // and the Editor tree; it is not a physics-joint operation.
+        // Validate parent liveness, reject self-parent and walk all
+        // ancestors to prevent cycles *before* touching either side.
+        // Update child's Parent and both sorted Children lists.
+        // Local transform stays unchanged; preserving world transform
+        // requires an explicit Editor reparent-with-preserve policy.
         void SetParent(Entity child, std::optional<Entity> parent)
         {
             Record& childRecord = RecordFor(child);
@@ -144,6 +165,11 @@ export namespace kairo::engine
         /// Task: provide one authoritative hierarchy calculation to rendering,
         /// physics, audio, and editor adapters. The walk is iterative and the
         /// hierarchy is acyclic by construction.
+        // Collect ancestors from leaf to root, then multiply local
+        // TRS transforms root-first. A*B*v applies B first under
+        // KairoMath column-vector convention. Nonuniform scale plus
+        // rotation can introduce shear not represented exactly by
+        // pure TRS; check integration expectations separately.
         [[nodiscard]] kairo::foundation::math::Transformf WorldTransform(Entity entity) const
         {
             std::vector<Entity> ancestry;
@@ -158,6 +184,9 @@ export namespace kairo::engine
 
         [[nodiscard]] bool IsEnabled(Entity entity) const { return RecordFor(entity).Settings.Enabled; }
         void SetEnabled(Entity entity, bool enabled) { RecordFor(entity).Settings.Enabled = enabled; }
+        // Enabled is inherited: any disabled ancestor deactivates
+        // descendants even when their own local Enabled flag is true.
+        // Renderer/physics extraction must apply this same policy.
         [[nodiscard]] bool IsActiveInHierarchy(Entity entity) const
         {
             for (std::optional<Entity> current = entity; current.has_value();
@@ -206,6 +235,10 @@ export namespace kairo::engine
         /// while keeping asset loading and GPU ownership outside EngineCore.
         // Record stable authored mesh/material references only.
         // Renderer bridges later resolve these to uploaded runtime handles.
+        // Store authored mesh/material IDs and visibility, not
+        // process-local Renderer MeshHandle/TextureHandle values.
+        // KairoGameEngine's shared RealtimeSceneBridge translates
+        // these references before native GPU submission.
         void SetMeshRenderer(Entity entity, MeshRendererComponent component)
         {
             Record& record = RecordFor(entity);
@@ -351,6 +384,10 @@ export namespace kairo::engine
 
         /// Stores or replaces an authored audio source. Clip decoding and voice
         /// ownership remain adapter/runtime responsibilities.
+        // Scene owns portable emitter settings and source identity,
+        // not a host OpenAL/other device voice. Editor undo snapshots
+        // must explicitly capture this component on deletion to
+        // restore an audio-bearing subtree faithfully.
         void SetAudioEmitter(Entity entity, AudioEmitterComponent component)
         {
             component.Validate();
@@ -528,6 +565,9 @@ export namespace kairo::engine
         // Scene describes requested physics behavior; a separate
         // PhysicsWorld adapter creates real bodies/colliders and owns
         // the solver/collision cache lifetime.
+        // Authored motion and mass settings are descriptors only.
+        // KairoPlayer's RuntimePhysicsBridge constructs and owns
+        // PhysicsWorld BodyID mappings and the solver state separately.
         void SetRigidBody(Entity entity, RigidBodyComponent component)
         {
             Record& record = RecordFor(entity);
@@ -565,6 +605,10 @@ export namespace kairo::engine
         /// Output: visible mesh entities in deterministic entity-ID order.
         /// Task: give render extraction a stable traversal without exposing
         /// optional component storage or unordered-map iteration order.
+        // Filter authored Entity IDs by active hierarchy, visible
+        // MeshRenderer component and stable sorted enumeration.
+        // This is a scene selection operation; native frustum/occlusion
+        // culling belongs to the renderer.
         [[nodiscard]] std::vector<Entity> RenderableEntities() const
         {
             std::vector<Entity> result;
