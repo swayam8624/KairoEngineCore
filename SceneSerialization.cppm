@@ -130,6 +130,9 @@ export namespace kairo::engine
                 std::to_string(expected - 1u) + " argument(s)");
         }
 
+        // Parse a bounded integer with no silent truncation or partial
+        // consumption. Saved Entity IDs and numeric fields must not depend on user
+        // locale or malformed trailing characters.
         [[nodiscard]] inline std::uint32_t ParseUInt32(const Token& token, std::size_t line, std::string_view field)
         {
             std::uint32_t result = 0u;
@@ -163,6 +166,9 @@ export namespace kairo::engine
             return result;
         }
 
+        // Use classic-locale numeric input and reject nonfinite results rather
+        // than permitting platform-specific decimal formatting to change scene
+        // behavior.
         [[nodiscard]] inline float ParseFloat(const Token& token, std::size_t line, std::string_view field)
         {
             std::istringstream stream(token.Text);
@@ -377,6 +383,9 @@ export namespace kairo::engine
             catch (const std::exception& error) { throw SceneFormatError(line, token.Column, error.what()); }
         }
 
+        // Escape authoring names and paths using the parser's symmetric string
+        // grammar; canonical serialization prevents whitespace from changing
+        // identity.
         [[nodiscard]] inline std::string Quote(std::string_view value)
         {
             std::string result = "\"";
@@ -414,12 +423,18 @@ export namespace kairo::engine
     // detached candidate Scene. Resolve delayed hierarchy links only
     // after records exist, then validate rather than partially mutating
     // a live project on malformed input.
+    // Decode into a detached Scene, validate typed KairoAssets references,
+    // record parent links, then resolve them after all IDs exist. Parsing must
+    // not mutate an already loaded live scene.
     [[nodiscard]] inline Scene ParseScene(std::string_view source, const kairo::assets::AssetRegistry& assets)
     {
         using namespace scene_format_detail;
         if (source.size() > MaxSceneBytes) throw std::length_error("Kairo scene exceeds the 64 MiB safety limit.");
 
         Scene scene;
+        // Hold child and parent IDs until the second pass. Children may appear
+        // before parents in text; Scene::SetParent is the authority on liveness
+        // and acyclic hierarchy.
         struct PendingParent final
         {
             Entity Child;
@@ -884,6 +899,9 @@ export namespace kairo::engine
     /// Output: stable ID-ordered and diff-friendly `kairo-scene 4` text.
     /// Preconditions: transforms and public components must remain valid, and
     /// every mesh/material reference must resolve with its declared asset type.
+    // Emit deterministic authored component records and stable Entity/Asset
+    // IDs. Runtime PhysicsWorld solver caches and renderer GPU handles are not
+    // .kscene content.
     [[nodiscard]] inline std::string SerializeScene(const Scene& scene, const kairo::assets::AssetRegistry& assets)
     {
         using namespace scene_format_detail;
@@ -1022,6 +1040,9 @@ export namespace kairo::engine
     // Load a bounded file and publish a fully parsed scene only after
     // validation. The caller remains responsible for updating any
     // renderer/physics adapters bound to the previous scene.
+    // Check the file byte bound and read all source before invoking
+    // ParseScene. Assign the resulting candidate only if parsing and graph
+    // validation succeed.
     inline void LoadScene(const std::filesystem::path& path, const kairo::assets::AssetRegistry& assets, Scene& destination)
     {
         std::error_code error;
@@ -1041,6 +1062,9 @@ export namespace kairo::engine
     /// temporary and replacing the destination with one host atomic rename.
     // Persist the fully serialized CPU scene via a staged file. This
     // does not save native renderer allocations or runtime solver state.
+    // Build full serialized text, stage beside destination, flush and
+    // atomically replace the scene file; this is not a distributed transaction
+    // across imported asset files.
     inline void SaveScene(const std::filesystem::path& path, const Scene& scene,
         const kairo::assets::AssetRegistry& assets)
     {
