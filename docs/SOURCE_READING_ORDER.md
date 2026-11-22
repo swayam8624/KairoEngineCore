@@ -6,23 +6,54 @@ Read these source links in order, identify the caller and callee for each public
 
 ## Reading order
 
-1. [`CMakeLists.txt`](../CMakeLists.txt)
-2. [`KairoEngineCore.cppm`](../KairoEngineCore.cppm)
-3. [`Entity.cppm`](../Entity.cppm)
-4. [`Components.cppm`](../Components.cppm)
-5. [`Scene.cppm`](../Scene.cppm)
-6. [`RuntimeComponents.cppm`](../RuntimeComponents.cppm)
-7. [`ProjectDescriptor.cppm`](../ProjectDescriptor.cppm)
-8. [`SceneSerialization.cppm`](../SceneSerialization.cppm)
-9. [`Input.cppm`](../Input.cppm)
-10. [`InputMap.cppm`](../InputMap.cppm)
-11. [`JobSystem.cppm`](../JobSystem.cppm)
-12. [`CoreReflection.cppm`](../CoreReflection.cppm)
-13. [`AnimationRuntime.cppm`](../AnimationRuntime.cppm)
-14. [`AudioRuntime.cppm`](../AudioRuntime.cppm)
-15. [`GameplayVM.cppm`](../GameplayVM.cppm)
-16. [`ShippingRuntime.cppm`](../ShippingRuntime.cppm)
-17. [`tests`](../tests)
+Start with the [complete project-to-runtime lifecycle walkthrough](SCENE_RUNTIME_WALKTHROUGH.md).
+The stages below form a learning curriculum, not CMake dependency order.
+
+### Stage A — Project bootstrap and authoritative scene
+
+1. [`CMakeLists.txt`](../CMakeLists.txt), [`KairoEngineCore.cppm`](../KairoEngineCore.cppm): build/modules and exported API boundaries.
+2. [`ProjectDescriptor.cppm`](../ProjectDescriptor.cppm), [`TextFormat.cppm`](../TextFormat.cppm) and [`TextValidation.cppm`](../TextValidation.cppm): shared .kproject syntax and safe path/atomic persistence.
+3. [`Entity.cppm`](../Entity.cppm), [`Components.cppm`](../Components.cppm) and [`RuntimeComponents.cppm`](../RuntimeComponents.cppm): stable ID and component contracts.
+4. [`Scene.cppm`](../Scene.cppm): owned entity/component registry, hierarchy and active state.
+5. [`SceneSerialization.cppm`](../SceneSerialization.cppm), [`SceneSerializationV5.cppm`](../SceneSerializationV5.cppm) and [`SceneComposition.cppm`](../SceneComposition.cppm): portable state, versioning and composed transforms.
+6. [`tests/EngineCoreTests.cpp`](../tests/EngineCoreTests.cpp), [`tests/ProjectDescriptorTests.cpp`](../tests/ProjectDescriptorTests.cpp) and [`tests/SceneCompositionTests.cpp`](../tests/SceneCompositionTests.cpp).
+
+**Exercise:** create/restore a parent-child scene and verify the IDs are
+independent from serialization order; distinguish reparenting with local
+transform preserved from a world-transform-preserving editor operation.
+
+### Stage B — Frame lifecycle and runtime mutations
+
+7. [`Application.cppm`](../Application.cppm), [`Layer.cppm`](../Layer.cppm) and [`Event.cppm`](../Event.cppm): host-injected layers and event dispatch.
+8. [`Time.cppm`](../Time.cppm), [`Input.cppm`](../Input.cppm) and [`InputMap.cppm`](../InputMap.cppm): frame clock, raw inputs and named actions.
+9. [`RuntimeWorld.cppm`](../RuntimeWorld.cppm) and [`RuntimeSceneCommands.cppm`](../RuntimeSceneCommands.cppm): queued edits, commit boundary, runtime revision.
+10. [`WorldStreaming.cppm`](../WorldStreaming.cppm): stream/tile state and lifecycle.
+11. [`JobSystem.cppm`](../JobSystem.cppm), [`CoreDiagnostics.cppm`](../CoreDiagnostics.cppm) and [`Logger.cppm`](../Logger.cppm): CPU jobs and non-GPU diagnostics.
+12. [`tests/RuntimeSceneCommandsTests.cpp`](../tests/RuntimeSceneCommandsTests.cpp) and [`tests/WorldStreamingTests.cpp`](../tests/WorldStreamingTests.cpp).
+
+**Exercise:** queue a valid and invalid scene edit together, attempt
+commit, then verify the live scene/revision did not partially mutate.
+A spawn ticket is not a durable Entity ID or a PhysicsWorld body handle.
+
+### Stage C — Animation, audio and gameplay
+
+13. [`AnimationRuntime.cppm`](../AnimationRuntime.cppm), [`AnimationController.cppm`](../AnimationController.cppm), [`AnimationRootMotion.cppm`](../AnimationRootMotion.cppm) and [`GltfSkinningRuntime.cppm`](../GltfSkinningRuntime.cppm).
+14. [`AudioRuntime.cppm`](../AudioRuntime.cppm), [`AudioSceneComponents.cppm`](../AudioSceneComponents.cppm) and [`AudioScenePersistence.cppm`](../AudioScenePersistence.cppm).
+15. [`LogicArtifact.cppm`](../LogicArtifact.cppm), [`LogicBytecode.cppm`](../LogicBytecode.cppm), [`LogicState.cppm`](../LogicState.cppm) and [`GameplayVM.cppm`](../GameplayVM.cppm).
+16. [`NativeGameplay.cppm`](../NativeGameplay.cppm), [`NativeGameplayManifest.cppm`](../NativeGameplayManifest.cppm), [`ProductionSystems.cppm`](../ProductionSystems.cppm) and [`ProductionRuntime.cppm`](../ProductionRuntime.cppm).
+17. [`ProductionSystemsManifest.cppm`](../ProductionSystemsManifest.cppm), [`ShippingRuntime.cppm`](../ShippingRuntime.cppm) and [`SaveGame.cppm`](../SaveGame.cppm).
+18. [`CoreReflection.cppm`](../CoreReflection.cppm), [`Platform.cppm`](../Platform.cppm) and [`RuntimeSceneCommands.cppm`](../RuntimeSceneCommands.cppm): inspector, platform and mutation integration.
+19. Match each subsystem with its specific test listed in the full inventory.
+
+**Exercise:** trace glTF animation output to a render-scene skin palette
+without allowing EngineCore to own native GPU resources. Differentiate
+authored .kscene persistence from runtime save-game state.
+
+### Stage D — Host integration and validation
+
+20. Follow KairoGameEngine's [shared render bridge](https://github.com/swayam8624/KairoGameEngine/blob/docs/teaching-walkthrough-20261121/Runtime/KairoRealtimeRenderBridge/RealtimeSceneBridge.cppm) and physics bridges to convert authored descriptors into native runtime state.
+21. Use [KairoEditor's source guide](https://github.com/swayam8624/KairoEditor/blob/docs/teaching-walkthrough-20261121/docs/SOURCE_READING_ORDER.md) to trace the authoring side of the same .kproject/.kscene format.
+22. Inspect remaining subsystem tests in the inventory below and record exact-head build/test results before claiming a verified host.
 
 ## Repository integration and API contracts
 
