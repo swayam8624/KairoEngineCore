@@ -414,8 +414,7 @@ export namespace kairo::engine
     // detached candidate Scene. Resolve delayed hierarchy links only
     // after records exist, then validate rather than partially mutating
     // a live project on malformed input.
-    [[nodiscard]] inline Scene ParseScene(
-std::string_view source, const kairo::assets::AssetRegistry& assets)
+    [[nodiscard]] inline Scene ParseScene(std::string_view source, const kairo::assets::AssetRegistry& assets)
     {
         using namespace scene_format_detail;
         if (source.size() > MaxSceneBytes) throw std::length_error("Kairo scene exceeds the 64 MiB safety limit.");
@@ -1023,8 +1022,7 @@ std::string_view source, const kairo::assets::AssetRegistry& assets)
     // Load a bounded file and publish a fully parsed scene only after
     // validation. The caller remains responsible for updating any
     // renderer/physics adapters bound to the previous scene.
-    inline void LoadScene(
-const std::filesystem::path& path, const kairo::assets::AssetRegistry& assets, Scene& destination)
+    inline void LoadScene(const std::filesystem::path& path, const kairo::assets::AssetRegistry& assets, Scene& destination)
     {
         std::error_code error;
         const std::uintmax_t bytes = std::filesystem::file_size(path, error);
@@ -1043,8 +1041,7 @@ const std::filesystem::path& path, const kairo::assets::AssetRegistry& assets, S
     /// temporary and replacing the destination with one host atomic rename.
     // Persist the fully serialized CPU scene via a staged file. This
     // does not save native renderer allocations or runtime solver state.
-    inline void SaveScene(
-const std::filesystem::path& path, const Scene& scene,
+    inline void SaveScene(const std::filesystem::path& path, const Scene& scene,
         const kairo::assets::AssetRegistry& assets)
     {
         const std::filesystem::path parent = path.has_parent_path() ? path.parent_path() : std::filesystem::path(".");
