@@ -9,6 +9,8 @@ Read these source links in order, identify the caller and callee for each public
 Start with the [complete project-to-runtime lifecycle walkthrough](SCENE_RUNTIME_WALKTHROUGH.md).
 The stages below form a learning curriculum, not CMake dependency order.
 
+**Cross-repository integration lab:** [RuntimeComponents + Scene → shared draw extraction and GPU handle boundaries](https://github.com/swayam8624/KairoGameEngine/blob/main/docs/ASSET_SCENE_TO_GPU_LIFETIME_LAB.md). Read the authored/CPU contracts before following the native GPU backend; source inspection is not a native test result.
+
 **Practice with real source:** [Stable IDs, world transforms, deferred command failures and versioned saves](AUTHORED_SCENE_AND_RUNTIME_TRANSACTION_LAB.md). This guide distinguishes authored scene objects from the ECS, physics and graphics runtime handles.
 
 ### Stage A — Project bootstrap and authoritative scene
