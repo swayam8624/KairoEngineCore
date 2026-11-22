@@ -9,6 +9,11 @@ module;
 #include <string>
 #include <string_view>
 #include <vector>
+// TEACHING CPU->GPU CONTRACT: EngineCore stores typed KairoAssets handles,
+// local transforms, visibility and photometric values. Neither MeshRenderer
+// nor SceneInstance contains a Renderer MeshHandle, VkImage, MTLTexture or
+// descriptor set. KairoGameEngine's RealtimeSceneBridge resolves the fields
+// into per-frame RenderScene via renderer-owned runtime bindings.
 export module Kairo.EngineCore.RuntimeComponents;
 
 import Kairo.Assets;
@@ -20,6 +25,9 @@ export namespace kairo::engine
     inline constexpr std::size_t MaximumEntityTags = 32u;
     inline constexpr std::size_t MaximumEntityTagBytes = 64u;
     inline constexpr std::size_t MaximumMaterialSlots = 256u;
+    // RenderLayers is an authored 64-bit visibility mask, independent from
+    // a native GPU render-pass mask. Extraction intersects it with the caller
+    // requested mask and rejects a zero requested mask.
     inline constexpr std::uint64_t AllRenderLayers =
         std::numeric_limits<std::uint64_t>::max();
 
@@ -84,6 +92,10 @@ export namespace kairo::engine
 
     /// Persistent typed handles keep scene serialization independent from a
     /// concrete loader while preserving references across asset path moves.
+    // One persistent typed MeshAsset/MaterialAsset identity per authored
+    // Entity. Visibility/shadows/layer policy remains meaningful even when
+    // no RendererRuntime exists (headless scene authoring/tests).
+    // Additional material slots preserve stable imported submesh ordering.
     struct MeshRendererComponent final
     {
         kairo::assets::MeshAssetHandle MeshAsset;
@@ -106,6 +118,10 @@ export namespace kairo::engine
         /// Output: the persistent material handle assigned to that slot.
         /// Degeneracy: an out-of-range slot throws rather than falling back to
         /// another material and hiding an importer/cook mismatch.
+        // Resolve a zero-based authored material slot without inventing a
+        // fallback when an importer requests a nonexistent submesh index.
+        // RealtimeSceneBridge's simple mesh-draw extraction currently uses
+        // MaterialForSlot(0); do not assume it automatically emits every slot.
         [[nodiscard]] kairo::assets::MaterialAssetHandle MaterialForSlot(
             std::size_t slot) const
         {
@@ -143,6 +159,11 @@ export namespace kairo::engine
     /// mesh records. The instance entity's world transform is composed before
     /// every imported node transform. Importing, GPU upload, and material
     /// resolution deliberately remain outside EngineCore.
+    // Retain one stable SceneAssetHandle even if its glTF source contains
+    // many nodes/mesh primitives. RealtimeSceneBridge expands it using
+    // process-local ScenePrimitive bindings and optional animation state.
+    // A single authored Entity.Value becomes the pick ObjectID for all
+    // its emitted primitives; the GPU meshes are NOT EngineCore-owned.
     struct SceneInstanceComponent final
     {
         kairo::assets::SceneAssetHandle SceneAsset;
