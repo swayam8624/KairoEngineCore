@@ -1,7 +1,9 @@
 # KairoEngineCore
 
+**Learn through the source:** [linked reading curriculum](docs/SOURCE_READING_ORDER.md) · [project → scene → runtime lifecycle](docs/SCENE_RUNTIME_WALKTHROUGH.md).
+
 `KairoEngineCore` is the platform-neutral scene and application layer between
-Kairo's renderer, physics engine, and future editor. It intentionally owns no
+Kairo's renderer, physics engine, and editor. It intentionally owns no
 GLFW/Vulkan or physics world; host applications inject those systems.
 
 ```text
