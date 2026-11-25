@@ -131,6 +131,33 @@ export namespace kairo::engine
             stride);
     }
 
+    struct TerrainLodErrorChoice final
+    {
+        std::uint32_t Stride=1u;
+        std::uint64_t MaximumErrorMillimeters=0u;
+    };
+
+    // Select the coarsest supported mesh under a geometric error ceiling.
+    // Do not assume that errors are monotonic across different fan layouts.
+    // Intended for preprocessing or background jobs, not every frame.
+    [[nodiscard]] inline TerrainLodErrorChoice ChooseSeededTerrainLodUnderError(
+        std::uint64_t worldSeed,WorldCellCoordinate coordinate,
+        const SeededHeightfieldConfig& config,std::uint32_t maximumStride,
+        std::uint64_t maximumErrorMillimeters)
+    {
+        detail::SeededHeightConfig{config.Intervals,config.LatticeSpacing,
+            config.MinimumMillimeters,config.MaximumMillimeters}.Validate();
+        if(maximumStride==0||(maximumStride&(maximumStride-1u))!=0||
+            config.Intervals%maximumStride!=0)
+            throw std::invalid_argument("Invalid maximum terrain LOD stride.");
+        for(auto stride=maximumStride;stride>1u;stride/=2u)
+        {
+            const auto error=MeasureSeededTerrainLodErrorMillimeters(worldSeed,coordinate,config,stride);
+            if(error<=maximumErrorMillimeters)return {stride,error};
+        }
+        return {};
+    }
+
     struct SeededTerrainSurfaceSample final
     {
         double HeightMeters;
