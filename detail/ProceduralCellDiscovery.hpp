@@ -19,7 +19,7 @@ namespace kairo::engine::detail
     DiscoverProceduralCells(double cellSize,double loadRadius,
         const Observers& observers,std::size_t maximumScannedCells)
     {
-        if (!std::isfinite(cellSize)||cellSize<0.001||cellSize>1.0e6 ||
+        if (!std::isfinite(cellSize)||cellSize<0.001||cellSize>1024000.0 ||
             !std::isfinite(loadRadius)||loadRadius<0 || maximumScannedCells==0)
             throw std::invalid_argument("Invalid procedural cell discovery limits.");
         using Coordinate=std::pair<std::int32_t,std::int32_t>;
