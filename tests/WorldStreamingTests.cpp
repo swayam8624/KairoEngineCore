@@ -364,3 +364,20 @@ TEST_CASE("seeded terrain LOD uses canonical assets without changing the world o
     CHECK_NOTHROW(kairo::assets::ValidateMeshArtifactData(coarse.Mesh));
     CHECK_THROWS_AS(BuildSeededTerrainLodMeshCell(42,{0,0},config,1000,3),std::invalid_argument);
 }
+
+TEST_CASE("terrain LOD error budget selects only admissible nominal geometry")
+{
+    SeededHeightfieldConfig config;
+    config.LatticeSpacing=3;
+    const WorldCellCoordinate cell{-3,7};
+    CHECK(MeasureSeededTerrainLodErrorMillimeters(42,cell,config,1)==0);
+    const auto selected=ChooseSeededTerrainLodUnderError(42,cell,config,32,500);
+    CHECK(selected.MaximumErrorMillimeters<=500);
+    CHECK(selected.MaximumErrorMillimeters==
+        MeasureSeededTerrainLodErrorMillimeters(42,cell,config,selected.Stride));
+    for(auto stride=selected.Stride*2u;stride<=32u;stride*=2u)
+        CHECK(MeasureSeededTerrainLodErrorMillimeters(42,cell,config,stride)>500);
+    config.MinimumMillimeters=config.MaximumMillimeters=50;
+    CHECK(ChooseSeededTerrainLodUnderError(42,cell,config,32,0).Stride==32);
+    CHECK_THROWS_AS(ChooseSeededTerrainLodUnderError(42,cell,config,3,500),std::invalid_argument);
+}
