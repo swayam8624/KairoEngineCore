@@ -239,3 +239,17 @@ TEST_CASE("seeded terrain generates canonical renderable mesh artifacts")
     }
     CHECK_THROWS_AS(BuildSeededTerrainMeshCell(42,{0,0},config,0),std::invalid_argument);
 }
+
+TEST_CASE("seeded terrain surface query follows the generated grid")
+{
+    SeededHeightfieldConfig config;
+    config.MinimumMillimeters=2000;
+    config.MaximumMillimeters=2000;
+    const auto sample=SampleSeededTerrainSurface(42,{-1,0},12.25,4.5,config);
+    REQUIRE(sample.has_value());
+    CHECK(sample->HeightMeters==2.0);
+    CHECK(sample->FaceNormal.x==0.0);
+    CHECK(sample->FaceNormal.y==1.0);
+    CHECK(sample->FaceNormal.z==0.0);
+    CHECK_FALSE(SampleSeededTerrainSurface(42,{-1,0},-1.0,0.0,config).has_value());
+}
