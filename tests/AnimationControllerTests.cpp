@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <utility>
 
 import Kairo.EngineCore.AnimationController;
@@ -224,4 +225,35 @@ TEST_CASE("animation controller validates state transition and runtime inputs")
     auto differentScene = scene;
     differentScene.Animations.pop_back();
     CHECK_THROWS_AS(runtime.EvaluatePose(differentScene), std::invalid_argument);
+}
+
+TEST_CASE("animation controller keeps its prior clock when a huge delta overflows")
+{
+    const auto scene=ControllerScene();
+    auto definition=BasicDefinition();
+    definition.States[0].Speed=2.f;
+    AnimationControllerRuntime runtime(definition,scene);
+    AnimationParameterSet parameters;
+    (void)runtime.Advance(scene,parameters,.1f);
+    const auto time=runtime.CurrentTimeSeconds();
+    CHECK_THROWS_AS(runtime.Advance(scene,parameters,std::numeric_limits<float>::max()),std::overflow_error);
+    CHECK(runtime.CurrentTimeSeconds()==time);
+    CHECK(runtime.CurrentStateName()=="Idle");
+    CHECK(Near(runtime.EvaluatePose(scene).Nodes[0].LocalTRS.Translation.x,2.f));
+}
+TEST_CASE("animation transition index ignores unrelated edges and preserves priority order")
+{
+    const auto scene=ControllerScene();
+    AnimationControllerDefinition definition;
+    for(unsigned i=0;i<1024;++i)
+        definition.States.push_back({"State"+std::to_string(i),i%3,1.f,AnimationTimeMode::Loop});
+    for(unsigned i=1;i<1023;++i)
+        definition.Transitions.push_back({i,i+1,{},0.f,0.f,100});
+    definition.Transitions.push_back({0,2,{},0.f,0.f,1});
+    definition.Transitions.push_back({0,3,{},0.f,0.f,2});
+    definition.Transitions.push_back({0,4,{},0.f,0.f,2});
+    AnimationControllerRuntime runtime(definition,scene);
+    AnimationParameterSet parameters;
+    (void)runtime.Advance(scene,parameters,0.f);
+    CHECK(runtime.CurrentStateIndex()==3u);
 }
