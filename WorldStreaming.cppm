@@ -1,6 +1,7 @@
 module;
 
 #include "detail/SeededHeightfield.hpp"
+#include "detail/SeededTerrainMesh.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -19,6 +20,7 @@ module;
 export module Kairo.EngineCore.WorldStreaming;
 
 import Kairo.Foundation.Math.Vector;
+import Kairo.Assets.MeshArtifact;
 
 export namespace kairo::engine
 {
@@ -66,6 +68,31 @@ export namespace kairo::engine
             detail::GenerateSeededHeightCell(worldSeed,coordinate.X,coordinate.Z,
                 {config.Intervals,config.LatticeSpacing,
                  config.MinimumMillimeters,config.MaximumMillimeters})};
+    }
+
+    struct SeededTerrainMeshCell final
+    {
+        WorldCellCoordinate Coordinate;
+        // Double-precision origin; vertices remain cell-local float meters.
+        // Large-world floating origin is the consumer's responsibility.
+        kairo::foundation::math::Vec3d Origin{};
+        kairo::assets::MeshArtifactData Mesh;
+    };
+
+    [[nodiscard]] inline SeededTerrainMeshCell BuildSeededTerrainMeshCell(
+        std::uint64_t worldSeed, WorldCellCoordinate coordinate,
+        const SeededHeightfieldConfig& config = {},
+        std::uint32_t sampleSpacingMillimeters = 1000u)
+    {
+        auto mesh = detail::GenerateSeededTerrainMesh<kairo::assets::MeshArtifactData>(
+            worldSeed,coordinate.X,coordinate.Z,
+            {config.Intervals,config.LatticeSpacing,
+             config.MinimumMillimeters,config.MaximumMillimeters},sampleSpacingMillimeters);
+        // Reject numerically degenerate extreme slope/spacing combinations,
+        // rather than publishing a noncanonical renderer/asset payload.
+        kairo::assets::ValidateMeshArtifactData(mesh);
+        const double extent = static_cast<double>(config.Intervals)*sampleSpacingMillimeters/1000.0;
+        return {coordinate,{coordinate.X*extent,0.0,coordinate.Z*extent},std::move(mesh)};
     }
 
     enum class WorldCellState : std::uint8_t
