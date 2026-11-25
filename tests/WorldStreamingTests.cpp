@@ -315,3 +315,37 @@ TEST_CASE("procedural discovery failure does not mutate the registry")
     (void)runtime.PlanUpdate(far);
     CHECK_FALSE(runtime.Runtime().Contains(pending.Loads.front().Coordinate));
 }
+
+TEST_CASE("procedural terrain runtime owns only resident CPU meshes")
+{
+    ProceduralWorldConfig config;
+    config.Seed=42;
+    config.Terrain.Intervals=8;
+    config.Streaming.LoadRadius=0;
+    config.Streaming.KeepRadius=0;
+    config.Streaming.MaximumCommittedCells=2;
+    config.Streaming.MaximumLoadsPerUpdate=2;
+    config.Streaming.MaximumUnloadsPerUpdate=2;
+    config.MaximumScannedCells=64;
+    ProceduralTerrainRuntime terrain(config);
+    const std::array near{Observer(4,4)};
+    const auto initial=terrain.Update(near);
+    REQUIRE(initial.Succeeded());
+    REQUIRE(initial.Loaded==1);
+    REQUIRE(terrain.Find({0,0})!=nullptr);
+    const auto original=terrain.Find({0,0})->Mesh;
+    for(unsigned i=1;i<=200;++i)
+    {
+        const std::array observers{Observer(4.0+i*80.0,4.0)};
+        const auto update=terrain.Update(observers);
+        REQUIRE(update.Succeeded());
+        CHECK(terrain.ResidentCells().size()==1);
+        CHECK(terrain.Streaming().Runtime().CommittedCellCount()==terrain.ResidentCells().size());
+    }
+    REQUIRE(terrain.Update(near).Succeeded());
+    REQUIRE(terrain.Find({0,0})!=nullptr);
+    CHECK(terrain.Find({0,0})->Mesh==original);
+    REQUIRE(terrain.Update({}).Succeeded());
+    CHECK(terrain.ResidentCells().empty());
+    CHECK(terrain.Streaming().Runtime().CommittedBytes()==0);
+}
