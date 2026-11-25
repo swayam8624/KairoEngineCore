@@ -4,12 +4,14 @@ module;
 #include "detail/SeededTerrainMesh.hpp"
 #include "detail/SeededTerrainSurface.hpp"
 #include "detail/ProceduralCellDiscovery.hpp"
+#include "detail/ProceduralTerrainStore.hpp"
 
 #include <algorithm>
 #include <cmath>
 #include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
 #include <limits>
 #include <map>
 #include <optional>
@@ -662,6 +664,50 @@ export namespace kairo::engine
                 std::to_string(m_Config.SampleSpacingMillimeters)+"/"+
                 std::to_string(c.X)+"/"+std::to_string(c.Z);
         }
+    };
+
+
+    struct ProceduralTerrainUpdate final
+    {
+        WorldStreamingPlan Plan; // reservation-time accounting
+        std::size_t Loaded=0,Unloaded=0,FailedLoads=0,FailedUnloads=0;
+        std::exception_ptr FirstFailure;
+
+        [[nodiscard]] bool Succeeded() const noexcept
+        { return FailedLoads==0 && FailedUnloads==0; }
+    };
+
+    // Synchronous CPU terrain owner. A renderer can consume its canonical
+    // mesh artifacts; GPU and physics ownership are intentionally not here.
+    // Do not retain a pointer/reference to an entry across an Update that
+    // may unload that coordinate.
+    class ProceduralTerrainRuntime final
+    {
+    public:
+        explicit ProceduralTerrainRuntime(ProceduralWorldConfig config={})
+            : m_Streaming(std::move(config)) {}
+
+        [[nodiscard]] const ProceduralWorldStreamingRuntime& Streaming() const noexcept
+        { return m_Streaming; }
+
+        [[nodiscard]] const std::map<WorldCellCoordinate,SeededTerrainMeshCell>& ResidentCells() const noexcept
+        { return m_Store.Cells(); }
+
+        [[nodiscard]] const SeededTerrainMeshCell* Find(WorldCellCoordinate coordinate) const noexcept
+        { return m_Store.Find(coordinate); }
+
+        [[nodiscard]] ProceduralTerrainUpdate Update(std::span<const WorldStreamingObserver> observers)
+        {
+            auto plan=m_Streaming.PlanUpdate(observers);
+            const auto stats=detail::ApplyProceduralTerrainPlan(m_Store,m_Streaming,plan,
+                [this](WorldCellCoordinate coordinate){return m_Streaming.BuildMesh(coordinate);});
+            return {std::move(plan),stats.Loaded,stats.Unloaded,
+                stats.FailedLoads,stats.FailedUnloads,stats.FirstFailure};
+        }
+
+    private:
+        ProceduralWorldStreamingRuntime m_Streaming;
+        detail::ProceduralTerrainStore<WorldCellCoordinate,SeededTerrainMeshCell> m_Store;
     };
 
 }
