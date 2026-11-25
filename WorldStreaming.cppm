@@ -3,6 +3,7 @@ module;
 #include "detail/SeededHeightfield.hpp"
 #include "detail/SeededTerrainMesh.hpp"
 #include "detail/SeededTerrainLod.hpp"
+#include "detail/TerrainLodSelection.hpp"
 #include "detail/SeededTerrainSurface.hpp"
 #include "detail/ProceduralCellDiscovery.hpp"
 #include "detail/ProceduralTerrainStore.hpp"
@@ -216,6 +217,23 @@ export namespace kairo::engine
                     "World streaming observer radius scale must be finite and positive.");
         }
     };
+
+    struct TerrainLodPolicy final
+    {
+        // Empty by default: full-resolution geometry everywhere.
+        std::vector<double> SwitchDistances;
+        double Hysteresis = 0.1;
+    };
+
+    [[nodiscard]] inline std::uint32_t SelectSeededTerrainLodStride(
+        WorldCellCoordinate coordinate,double cellExtent,std::uint32_t intervals,
+        std::span<const WorldStreamingObserver> observers,const TerrainLodPolicy& policy,
+        std::uint32_t currentStride=0)
+    {
+        for(const auto& observer:observers)observer.Validate();
+        return detail::SelectTerrainLodStride(coordinate.X,coordinate.Z,cellExtent,
+            intervals,observers,policy.SwitchDistances,policy.Hysteresis,currentStride);
+    }
 
     struct WorldStreamingRequest final
     {

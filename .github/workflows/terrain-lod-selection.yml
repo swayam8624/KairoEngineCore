@@ -1,0 +1,21 @@
+name: Terrain LOD selection contract
+on:
+  push:
+    branches: [main, feat/terrain-lod-selection]
+  pull_request:
+    paths:
+      - 'detail/TerrainLodSelection.hpp'
+      - 'WorldStreaming.cppm'
+      - 'tests/TerrainLodSelectionTests.cpp'
+      - '.github/workflows/terrain-lod-selection.yml'
+permissions:
+  contents: read
+jobs:
+  selection:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify hysteresis and multi-observer selection
+        run: |
+          g++ -std=c++23 -Wall -Wextra -Wpedantic -Werror -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer tests/TerrainLodSelectionTests.cpp -o /tmp/terrain-lod-selection-test
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/terrain-lod-selection-test
