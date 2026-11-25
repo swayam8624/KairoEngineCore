@@ -273,6 +273,13 @@ export namespace kairo::engine
               m_ExpectedNodeCount(scene.Nodes.size())
         {
             m_Definition.Validate(scene);
+            m_Outgoing.resize(m_Definition.States.size());
+            for(std::size_t i=0;i<m_Definition.Transitions.size();++i)
+                m_Outgoing[m_Definition.Transitions[i].FromState].push_back(i);
+            for(auto& edges:m_Outgoing)
+                std::stable_sort(edges.begin(),edges.end(),[&](auto a,auto b){
+                    return m_Definition.Transitions[a].Priority>m_Definition.Transitions[b].Priority;
+                });
             Reset();
         }
 
@@ -350,19 +357,30 @@ export namespace kairo::engine
                 throw std::invalid_argument(
                     "Animation controller delta time must be finite and non-negative.");
 
-            if (m_Transition.has_value())
-                AdvanceTransition(deltaSeconds);
-            else
+            const auto previousState=m_CurrentState;
+            const auto previousTime=m_CurrentTimeSeconds;
+            const auto previousTransition=m_Transition;
+            try
             {
-                const auto& state = m_Definition.States[m_CurrentState];
-                m_CurrentTimeSeconds += deltaSeconds * state.Speed;
-                if (!std::isfinite(m_CurrentTimeSeconds))
-                    throw std::overflow_error(
-                        "Animation controller state clock overflowed.");
-                const auto selected = SelectTransition(scene, parameters);
-                if (selected.has_value()) BeginTransition(*selected);
+                if (m_Transition.has_value())
+                    AdvanceTransition(deltaSeconds);
+                else
+                {
+                    const auto& state = m_Definition.States[m_CurrentState];
+                    m_CurrentTimeSeconds += deltaSeconds * state.Speed;
+                    if (!std::isfinite(m_CurrentTimeSeconds))
+                        throw std::overflow_error(
+                            "Animation controller state clock overflowed.");
+                    const auto selected = SelectTransition(scene, parameters);
+                    if (selected.has_value()) BeginTransition(*selected);
+                }
+                return EvaluatePose(scene);
             }
-            return EvaluatePose(scene);
+            catch(...)
+            {
+                m_CurrentState=previousState;m_CurrentTimeSeconds=previousTime;
+                m_Transition=previousTransition;throw;
+            }
         }
 
     private:
@@ -375,6 +393,7 @@ export namespace kairo::engine
         };
 
         AnimationControllerDefinition m_Definition;
+        std::vector<std::vector<std::size_t>> m_Outgoing;
         std::size_t m_ExpectedAnimationCount = 0u;
         std::size_t m_ExpectedNodeCount = 0u;
         std::size_t m_CurrentState = 0u;
@@ -417,19 +436,15 @@ export namespace kairo::engine
             const AnimationParameterSet& parameters) const
         {
             const float progress = NormalizedStateProgress(scene);
-            std::optional<std::size_t> selected;
-            for (std::size_t index = 0u; index < m_Definition.Transitions.size(); ++index)
+            // The authored order is stable for equal priorities. Only
+            // edges leaving the current state can participate this frame.
+            for(const auto index:m_Outgoing[m_CurrentState])
             {
-                const auto& transition = m_Definition.Transitions[index];
-                if (transition.FromState != m_CurrentState ||
-                    progress < transition.MinimumNormalizedTime ||
-                    !ConditionsPass(transition, parameters))
-                    continue;
-                if (!selected.has_value() || transition.Priority >
-                    m_Definition.Transitions[*selected].Priority)
-                    selected = index;
+                const auto& transition=m_Definition.Transitions[index];
+                if(progress>=transition.MinimumNormalizedTime&&ConditionsPass(transition,parameters))
+                    return index;
             }
-            return selected;
+            return std::nullopt;
         }
 
         void BeginTransition(std::size_t definitionIndex)
