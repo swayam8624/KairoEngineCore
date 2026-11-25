@@ -1,5 +1,7 @@
 module;
 
+#include "detail/SeededHeightfield.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <compare>
@@ -28,6 +30,43 @@ export namespace kairo::engine
         friend constexpr auto operator<=>(WorldCellCoordinate,
             WorldCellCoordinate) noexcept = default;
     };
+
+    // Versioned procedural terrain source. Heights are signed integer
+    // millimeters, not platform-dependent floating-point RNG results.
+    // The world-space spacing between samples is a caller's mesh concern.
+    inline constexpr std::uint32_t SeededHeightfieldVersion = 1u;
+    struct SeededHeightfieldConfig final
+    {
+        std::uint32_t Intervals = 32u;
+        std::uint32_t LatticeSpacing = 16u;
+        std::int32_t MinimumMillimeters = -10000;
+        std::int32_t MaximumMillimeters = 30000;
+    };
+
+    struct SeededHeightfieldCell final
+    {
+        WorldCellCoordinate Coordinate;
+        std::uint32_t Intervals = 0u;
+        // Row-major Z then X, including the shared final row and column.
+        std::vector<std::int32_t> HeightsMillimeters;
+    };
+
+    [[nodiscard]] inline std::uint64_t DeriveWorldCellSeed(
+        std::uint64_t worldSeed, WorldCellCoordinate coordinate,
+        std::uint64_t domain = 0u) noexcept
+    {
+        return detail::WorldCoordinateBits(worldSeed,coordinate.X,coordinate.Z,domain);
+    }
+
+    [[nodiscard]] inline SeededHeightfieldCell BuildSeededHeightfieldCell(
+        std::uint64_t worldSeed,WorldCellCoordinate coordinate,
+        const SeededHeightfieldConfig& config = {})
+    {
+        return {coordinate,config.Intervals,
+            detail::GenerateSeededHeightCell(worldSeed,coordinate.X,coordinate.Z,
+                {config.Intervals,config.LatticeSpacing,
+                 config.MinimumMillimeters,config.MaximumMillimeters})};
+    }
 
     enum class WorldCellState : std::uint8_t
     {
