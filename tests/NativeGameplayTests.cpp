@@ -1,4 +1,7 @@
 #include <memory>
+#include <limits>
+#include <stdexcept>
+#include <utility>
 #include <string>
 #include <variant>
 
@@ -27,6 +30,11 @@ namespace
         {
             ++Updated;
             if (Speed > 1.0) context.AddTag(context.Self(), "fast");
+        }
+        void OnSignal(kairo::engine::NativeGameplayContext& context,
+            const kairo::engine::NativeGameplaySignal& signal) override
+        {
+            if(signal.Name=="quest.complete")context.AddTag(context.Self(),"quest-complete");
         }
         void ApplyProperty(std::string_view name,
             const kairo::engine::NativeGameplayValue& value) override
@@ -93,4 +101,49 @@ TEST_CASE("Native gameplay property type mismatches fail before play")
     attachment.TypeName = "Counter";
     attachment.Properties["speed"] = std::string("wrong");
     REQUIRE_THROWS_AS(runtime.Attach(std::move(attachment)), std::invalid_argument);
+}
+TEST_CASE("native gameplay signals target one entity or broadcast deterministically")
+{
+    using namespace kairo::engine;
+    NativeGameplayRegistry registry;
+    NativeGameplayTypeInfo type;type.TypeName="Counter";
+    type.Properties.push_back({"speed",NativeGameplayPropertyType::Number,1.0,true,0.0,10.0});
+    registry.Register(type,[]{return std::make_unique<CounterSystem>();});
+    Scene scene;const auto a=scene.CreateEntity("A"),b=scene.CreateEntity("B");
+    RuntimeWorld world(std::move(scene));NativeGameplayRuntime runtime(world,registry);
+    NativeGameplayAttachment attachment;attachment.Target=a;attachment.TypeName="Counter";
+    runtime.Attach(attachment);attachment.Target=b;runtime.Attach(attachment);
+    runtime.BeginPlay();
+    runtime.DispatchSignal({"quest.complete",a,b,true});
+    CHECK_FALSE(world.Snapshot().HasTag(a,"quest-complete"));
+    CHECK(world.Snapshot().HasTag(b,"quest-complete"));
+    runtime.DispatchSignal({"quest.complete",a,std::nullopt,true});
+    CHECK(world.Snapshot().HasTag(a,"quest-complete"));
+    CHECK_THROWS_AS(runtime.DispatchSignal({"",a,b,true}),std::invalid_argument);
+    runtime.EndPlay();
+}
+
+TEST_CASE("native gameplay rejects invalid numbers and preserves live instances on failed reload")
+{
+    using namespace kairo::engine;
+    NativeGameplayRegistry registry;
+    NativeGameplayTypeInfo type;type.TypeName="Counter";
+    type.Properties.push_back({"speed",NativeGameplayPropertyType::Number,1.0,true,0.0,10.0});
+    registry.Register(type,[]{return std::make_unique<CounterSystem>();});
+    Scene scene;const auto actor=scene.CreateEntity("Actor");
+    RuntimeWorld world(std::move(scene));NativeGameplayRuntime runtime(world,registry);
+    NativeGameplayAttachment attachment;attachment.Target=actor;attachment.TypeName="Counter";
+    attachment.Properties["speed"]=11.0;
+    CHECK_THROWS_AS(runtime.Attach(attachment),std::invalid_argument);
+    attachment.Properties["speed"]=std::numeric_limits<double>::quiet_NaN();
+    CHECK_THROWS_AS(runtime.Attach(attachment),std::invalid_argument);
+    attachment.Properties["speed"]=2.0;runtime.Attach(attachment);
+    runtime.BeginPlay();
+    NativeGameplayRegistry broken;
+    broken.Register(type,[]()->std::unique_ptr<NativeGameplaySystem>{throw std::runtime_error("factory");});
+    CHECK_THROWS_AS(runtime.Reload(broken,NativeReloadPolicy::PreserveCompatibleProperties),std::runtime_error);
+    REQUIRE(runtime.InstanceCount()==1u);
+    runtime.Update(.05);
+    CHECK(world.Snapshot().HasTag(actor,"fast"));
+    runtime.EndPlay();
 }
