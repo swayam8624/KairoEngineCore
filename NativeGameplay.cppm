@@ -74,6 +74,16 @@ export namespace kairo::engine
         std::vector<NativeGameplayAttachment> Behaviours;
     };
 
+    // A game-defined signal is distinct from operating-system input events.
+    // Optional target restricts delivery; broadcast keeps stable actor order.
+    struct NativeGameplaySignal final
+    {
+        std::string Name;
+        std::optional<Entity> Source;
+        std::optional<Entity> Target;
+        NativeGameplayValue Payload=false;
+    };
+
     class NativeGameplayContext final
     {
     public:
@@ -108,6 +118,7 @@ export namespace kairo::engine
         virtual void OnFixedUpdate(NativeGameplayContext&) {}
         virtual void OnUpdate(NativeGameplayContext&) {}
         virtual void OnEvent(NativeGameplayContext&, const Event&) {}
+        virtual void OnSignal(NativeGameplayContext&, const NativeGameplaySignal&) {}
         virtual void OnEndPlay(NativeGameplayContext&) {}
         virtual void ApplyProperty(std::string_view, const NativeGameplayValue&) {}
         [[nodiscard]] virtual std::optional<NativeGameplayValue> ReadProperty(std::string_view) const
@@ -124,8 +135,12 @@ export namespace kairo::engine
             if (type.TypeName.empty() || !factory)
                 throw std::invalid_argument("Native gameplay registration requires a type name and factory.");
             for (const auto& property : type.Properties) ValidateProperty(property);
+            if(type.Version==0u)throw std::invalid_argument("Native gameplay type version cannot be zero.");
             std::sort(type.Properties.begin(), type.Properties.end(),
                 [](const auto& a, const auto& b) { return a.Name < b.Name; });
+            for(std::size_t i=1;i<type.Properties.size();++i)
+                if(type.Properties[i-1].Name==type.Properties[i].Name)
+                    throw std::invalid_argument("Duplicate native gameplay property.");
             const std::string key = type.TypeName;
             if (m_Types.contains(key)) throw std::invalid_argument("Native gameplay type is already registered.");
             m_Types.emplace(key, Entry{ std::move(type), std::move(factory) });
@@ -158,6 +173,21 @@ export namespace kairo::engine
             return result;
         }
 
+        static void ValidateValue(const NativeGameplayProperty& property,const NativeGameplayValue& value)
+        {
+            if(value.index()!=property.DefaultValue.index())
+                throw std::invalid_argument("Native gameplay property has the wrong type.");
+            if(const auto* number=std::get_if<double>(&value))
+            {
+                if(!std::isfinite(*number)||(property.Minimum&&*number<*property.Minimum)||
+                    (property.Maximum&&*number>*property.Maximum))
+                    throw std::invalid_argument("Native gameplay number is outside its finite range.");
+            }
+            if(const auto* vector=std::get_if<kairo::foundation::math::Vec3d>(&value))
+                if(!std::isfinite(vector->x)||!std::isfinite(vector->y)||!std::isfinite(vector->z))
+                    throw std::invalid_argument("Native gameplay vector must be finite.");
+        }
+
     private:
         struct Entry final { NativeGameplayTypeInfo Info; NativeGameplayFactory Factory; };
         std::map<std::string, Entry> m_Types;
@@ -178,9 +208,11 @@ export namespace kairo::engine
             }();
             if (property.DefaultValue.index() != expected)
                 throw std::invalid_argument("Native gameplay property default does not match its declared type.");
-            if (property.Minimum.has_value() && property.Maximum.has_value() &&
-                *property.Minimum > *property.Maximum)
-                throw std::invalid_argument("Native gameplay property range is reversed.");
+            if ((property.Minimum&&!std::isfinite(*property.Minimum))||
+                (property.Maximum&&!std::isfinite(*property.Maximum))||
+                (property.Minimum&&property.Maximum&&*property.Minimum>*property.Maximum))
+                throw std::invalid_argument("Native gameplay property range is invalid.");
+            ValidateValue(property,property.DefaultValue);
         }
     };
 
@@ -244,6 +276,26 @@ export namespace kairo::engine
             CommitIfNeeded();
         }
 
+        void DispatchSignal(const NativeGameplaySignal& signal)
+        {
+            RequirePlaying();
+            if(signal.Name.empty()||signal.Name.size()>256u)
+                throw std::invalid_argument("Native gameplay signal name is invalid.");
+            if(signal.Source&&!m_World.Snapshot().Contains(*signal.Source))
+                throw std::out_of_range("Native gameplay signal source is missing.");
+            if(signal.Target&&!m_World.Snapshot().Contains(*signal.Target))
+                throw std::out_of_range("Native gameplay signal target is missing.");
+            for(auto& instance:m_Instances)
+            {
+                const auto actor=instance.Attachment.Target;
+                if(!instance.Attachment.Enabled||!m_World.Snapshot().Contains(actor)||
+                    (signal.Target&&*signal.Target!=actor))continue;
+                NativeGameplayContext context(m_World,actor);
+                instance.System->OnSignal(context,signal);
+            }
+            CommitIfNeeded();
+        }
+
         void EndPlay()
         {
             if (!m_Playing) return;
@@ -261,22 +313,32 @@ export namespace kairo::engine
 
         void Reload(const NativeGameplayRegistry& replacement, NativeReloadPolicy policy)
         {
-            m_Registry = replacement;
-            for (auto& instance : m_Instances)
+            // Build every replacement before publishing any. A throwing
+            // factory or incompatible property cannot partially swap systems.
+            auto registryCandidate=replacement;
+            std::vector<Instance> candidate;
+            candidate.reserve(m_Instances.size());
+            for(const auto& previous:m_Instances)
             {
-                auto replacementSystem = m_Registry.Create(instance.Attachment.TypeName);
-                if (policy == NativeReloadPolicy::PreserveCompatibleProperties)
-                {
-                    const auto& type = m_Registry.Type(instance.Attachment.TypeName);
-                    for (const auto& property : type.Properties)
+                Instance next;
+                next.Attachment=previous.Attachment;
+                next.Attachment.Properties.clear();
+                const auto& type=registryCandidate.Type(next.Attachment.TypeName);
+                next.System=registryCandidate.Create(next.Attachment.TypeName);
+                if(policy==NativeReloadPolicy::PreserveCompatibleProperties)
+                    for(const auto& property:type.Properties)
                     {
-                        const auto found = instance.Attachment.Properties.find(property.Name);
-                        replacementSystem->ApplyProperty(property.Name,
-                            found == instance.Attachment.Properties.end() ? property.DefaultValue : found->second);
+                        const auto found=previous.Attachment.Properties.find(property.Name);
+                        if(found==previous.Attachment.Properties.end())continue;
+                        try { NativeGameplayRegistry::ValidateValue(property,found->second); }
+                        catch(const std::invalid_argument&) { continue; }
+                        next.Attachment.Properties.emplace(property.Name,found->second);
                     }
-                }
-                instance.System = std::move(replacementSystem);
+                ApplyDefaultsAndOverrides(type,next);
+                candidate.push_back(std::move(next));
             }
+            m_Registry=std::move(registryCandidate);
+            m_Instances=std::move(candidate);
         }
 
     private:
@@ -293,13 +355,19 @@ export namespace kairo::engine
 
         void ApplyDefaultsAndOverrides(const NativeGameplayTypeInfo& type, Instance& instance)
         {
+            for(const auto& [name,value]:instance.Attachment.Properties)
+            {
+                (void)value;
+                if(std::none_of(type.Properties.begin(),type.Properties.end(),
+                    [&](const auto& property){return property.Name==name;}))
+                    throw std::invalid_argument("Unknown native gameplay property override.");
+            }
             for (const auto& property : type.Properties)
             {
                 const auto found = instance.Attachment.Properties.find(property.Name);
                 const NativeGameplayValue& value = found == instance.Attachment.Properties.end()
                     ? property.DefaultValue : found->second;
-                if (value.index() != property.DefaultValue.index())
-                    throw std::invalid_argument("Native gameplay property override has the wrong type.");
+                NativeGameplayRegistry::ValidateValue(property,value);
                 instance.System->ApplyProperty(property.Name, value);
                 instance.Attachment.Properties.insert_or_assign(property.Name, value);
             }
