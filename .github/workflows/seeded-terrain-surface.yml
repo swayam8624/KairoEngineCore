@@ -1,0 +1,23 @@
+name: Seeded terrain surface contract
+on:
+  push:
+    branches: [main, feat/seeded-terrain-surface-query]
+  pull_request:
+    paths:
+      - 'detail/SeededTerrainSurface.hpp'
+      - 'detail/SeededTerrainMesh.hpp'
+      - 'detail/SeededHeightfield.hpp'
+      - 'WorldStreaming.cppm'
+      - 'tests/SeededTerrainSurfaceTests.cpp'
+      - '.github/workflows/seeded-terrain-surface.yml'
+permissions:
+  contents: read
+jobs:
+  surface:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare sampled terrain against triangle planes
+        run: |
+          g++ -std=c++23 -Wall -Wextra -Wpedantic -Werror -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer tests/SeededTerrainSurfaceTests.cpp -o /tmp/seeded-terrain-surface-test
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/seeded-terrain-surface-test
