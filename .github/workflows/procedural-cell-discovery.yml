@@ -1,0 +1,21 @@
+name: Procedural cell discovery contract
+on:
+  push:
+    branches: [main, feat/procedural-cell-discovery]
+  pull_request:
+    paths:
+      - 'detail/ProceduralCellDiscovery.hpp'
+      - 'WorldStreaming.cppm'
+      - 'tests/ProceduralCellDiscoveryTests.cpp'
+      - '.github/workflows/procedural-cell-discovery.yml'
+permissions:
+  contents: read
+jobs:
+  discovery:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare bounded discovery with brute-force oracle
+        run: |
+          g++ -std=c++23 -Wall -Wextra -Wpedantic -Werror -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer tests/ProceduralCellDiscoveryTests.cpp -o /tmp/procedural-cell-test
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/procedural-cell-test
