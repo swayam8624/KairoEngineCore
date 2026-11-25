@@ -1,0 +1,23 @@
+name: Seeded terrain LOD contract
+on:
+  push:
+    branches: [main, feat/seeded-terrain-lod]
+  pull_request:
+    paths:
+      - 'detail/SeededTerrainLod.hpp'
+      - 'detail/SeededTerrainMesh.hpp'
+      - 'detail/SeededHeightfield.hpp'
+      - 'WorldStreaming.cppm'
+      - 'tests/SeededTerrainLodTests.cpp'
+      - '.github/workflows/seeded-terrain-lod.yml'
+permissions:
+  contents: read
+jobs:
+  topology:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify complete coverage and invariant edges
+        run: |
+          g++ -std=c++23 -Wall -Wextra -Wpedantic -Werror -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer tests/SeededTerrainLodTests.cpp -o /tmp/terrain-lod-test
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/terrain-lod-test
