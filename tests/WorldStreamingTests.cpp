@@ -253,3 +253,65 @@ TEST_CASE("seeded terrain surface query follows the generated grid")
     CHECK(sample->FaceNormal.z==0.0);
     CHECK_FALSE(SampleSeededTerrainSurface(42,{-1,0},-1.0,0.0,config).has_value());
 }
+
+TEST_CASE("procedural cell discovery keeps a bounded registry while traveling")
+{
+    ProceduralWorldConfig config;
+    config.Seed=42;
+    config.Terrain.Intervals=8;
+    config.Streaming.LoadRadius=8;
+    config.Streaming.KeepRadius=16;
+    config.Streaming.MaximumCommittedCells=32;
+    config.Streaming.MaximumCommittedBytes=1000000;
+    config.Streaming.MaximumLoadsPerUpdate=32;
+    config.Streaming.MaximumUnloadsPerUpdate=32;
+    config.MaximumScannedCells=128;
+    ProceduralWorldStreamingRuntime runtime(config);
+    CHECK(runtime.Config().Streaming.CellSize==8);
+    const auto original=runtime.BuildMesh({0,0});
+    for(unsigned frame=0;frame<200;++frame)
+    {
+        const std::array observers{Observer(4.0+frame*80.0,4.0)};
+        const auto plan=runtime.PlanUpdate(observers);
+        for(const auto& request:plan.Unloads)
+            runtime.CompleteUnload(request.Coordinate,true);
+        for(const auto& request:plan.Loads)
+        {
+            CHECK(request.ContentKey.starts_with("procedural://heightfield/v1/42/"));
+            runtime.CompleteLoad(request.Coordinate,true);
+        }
+        CHECK(runtime.Runtime().CellCount()<=64);
+        CHECK(runtime.Runtime().CommittedCellCount()<=32);
+        CHECK(runtime.Runtime().CommittedBytes()<=1000000);
+    }
+    const auto unload=runtime.PlanUpdate({});
+    for(const auto& request:unload.Unloads)
+        runtime.CompleteUnload(request.Coordinate,true);
+    CHECK(runtime.PlanUpdate({}).Empty());
+    CHECK(runtime.Runtime().CellCount()==0);
+    CHECK(runtime.BuildMesh({0,0}).Mesh==original.Mesh);
+}
+
+TEST_CASE("procedural discovery failure does not mutate the registry")
+{
+    ProceduralWorldConfig config;
+    config.Terrain.Intervals=8;
+    config.Streaming.LoadRadius=8;
+    config.Streaming.KeepRadius=16;
+    config.MaximumScannedCells=128;
+    ProceduralWorldStreamingRuntime runtime(config);
+    const std::array near{Observer(4,4)};
+    const auto pending=runtime.PlanUpdate(near);
+    REQUIRE_FALSE(pending.Loads.empty());
+    const auto before=runtime.Runtime().Snapshot();
+    const std::array excessive{Observer(4,4,1000)};
+    CHECK_THROWS_AS(runtime.PlanUpdate(excessive),std::length_error);
+    CHECK(runtime.Runtime().Snapshot()==before);
+    // A teleport cannot prune a still-loading cell.
+    const std::array far{Observer(800,800)};
+    (void)runtime.PlanUpdate(far);
+    CHECK(runtime.Runtime().State(pending.Loads.front().Coordinate)==WorldCellState::Loading);
+    runtime.CompleteLoad(pending.Loads.front().Coordinate,false);
+    (void)runtime.PlanUpdate(far);
+    CHECK_FALSE(runtime.Runtime().Contains(pending.Loads.front().Coordinate));
+}

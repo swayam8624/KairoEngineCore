@@ -3,6 +3,7 @@ module;
 #include "detail/SeededHeightfield.hpp"
 #include "detail/SeededTerrainMesh.hpp"
 #include "detail/SeededTerrainSurface.hpp"
+#include "detail/ProceduralCellDiscovery.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -392,8 +393,7 @@ export namespace kairo::engine
             plan.Unloads.reserve(unloadCount);
             for (std::size_t index = 0u; index < unloadCount; ++index)
             {
-                CellRecord& record = RequireMutable(unloadCandidates[index].Coordinate);
-                record.State = WorldCellState::Unloading;
+                const CellRecord& record = Require(unloadCandidates[index].Coordinate);
                 plan.Unloads.push_back(MakeRequest(record.Descriptor,
                     unloadCandidates[index].DistanceSquared));
             }
@@ -411,7 +411,7 @@ export namespace kairo::engine
                     break;
                 }
 
-                CellRecord& record = RequireMutable(candidate.Coordinate);
+                const CellRecord& record = Require(candidate.Coordinate);
                 const std::uint64_t bytes = record.Descriptor.EstimatedResidentBytes;
                 const bool cellBudgetAvailable =
                     committedCells < m_Config.MaximumCommittedCells;
@@ -424,7 +424,6 @@ export namespace kairo::engine
                     continue;
                 }
 
-                record.State = WorldCellState::Loading;
                 ++committedCells;
                 committedBytes += bytes;
                 plan.Loads.push_back(MakeRequest(record.Descriptor,
@@ -435,6 +434,13 @@ export namespace kairo::engine
                 plan.BudgetConstrained = true;
             plan.CommittedCells = committedCells;
             plan.CommittedBytes = committedBytes;
+            // All allocating request construction finished. Publish the
+            // reservations only now, so an exception cannot strand a cell
+            // in Loading/Unloading without a delivered request.
+            for (const auto& request : plan.Unloads)
+                RequireMutable(request.Coordinate).State = WorldCellState::Unloading;
+            for (const auto& request : plan.Loads)
+                RequireMutable(request.Coordinate).State = WorldCellState::Loading;
             return plan;
         }
 
@@ -559,4 +565,103 @@ export namespace kairo::engine
             return decision;
         }
     };
+
+    // A generated world is a bounded registry around current observers,
+    // not a manifest containing every cell ever visited. The existing
+    // WorldStreamingRuntime remains the sole authority on residency.
+    struct ProceduralWorldConfig final
+    {
+        std::uint64_t Seed = 0u;
+        SeededHeightfieldConfig Terrain;
+        std::uint32_t SampleSpacingMillimeters = 1000u;
+        WorldStreamingConfig Streaming;
+        std::size_t MaximumScannedCells = 65536u;
+        // Estimate includes consumer-owned resources; this is not actual
+        // GPU memory telemetry. Zero selects canonical CPU mesh payload.
+        std::uint64_t EstimatedResidentBytes = 0u;
+    };
+
+    class ProceduralWorldStreamingRuntime final
+    {
+    public:
+        explicit ProceduralWorldStreamingRuntime(ProceduralWorldConfig config = {})
+            : m_Config(Validate(std::move(config))), m_Runtime(m_Config.Streaming) {}
+
+        [[nodiscard]] const ProceduralWorldConfig& Config() const noexcept { return m_Config; }
+        [[nodiscard]] const WorldStreamingRuntime& Runtime() const noexcept { return m_Runtime; }
+
+        [[nodiscard]] WorldStreamingPlan PlanUpdate(std::span<const WorldStreamingObserver> observers)
+        {
+            for (const auto& observer : observers)
+            {
+                observer.Validate();
+                const double keep=m_Config.Streaming.KeepRadius*observer.RadiusScale;
+                if(!std::isfinite(keep)||keep>1.0e100)
+                    throw std::invalid_argument("Procedural keep radius exceeds safe range.");
+            }
+            const auto wanted=detail::DiscoverProceduralCells(m_Config.Streaming.CellSize,
+                m_Config.Streaming.LoadRadius,observers,m_Config.MaximumScannedCells);
+            // Prune only unloaded cells. Pending/resident ownership remains
+            // discoverable until the consumer acknowledges its completion.
+            for(const auto& snapshot:m_Runtime.Snapshot())
+            {
+                const auto coordinate=snapshot.Descriptor.Coordinate;
+                if(snapshot.State==WorldCellState::Unloaded &&
+                    !wanted.contains({coordinate.X,coordinate.Z}))
+                    m_Runtime.UnregisterCell(coordinate);
+            }
+            for(const auto& [x,z]:wanted)
+            {
+                const WorldCellCoordinate coordinate{x,z};
+                if(!m_Runtime.Contains(coordinate))
+                    m_Runtime.RegisterCell({coordinate,ContentKey(coordinate),
+                        m_Config.EstimatedResidentBytes,0,false});
+            }
+            return m_Runtime.PlanUpdate(observers);
+        }
+
+        void CompleteLoad(WorldCellCoordinate coordinate,bool success)
+        { m_Runtime.CompleteLoad(coordinate,success); }
+        void CompleteUnload(WorldCellCoordinate coordinate,bool success)
+        { m_Runtime.CompleteUnload(coordinate,success); }
+
+        [[nodiscard]] SeededTerrainMeshCell BuildMesh(WorldCellCoordinate coordinate) const
+        {
+            return BuildSeededTerrainMeshCell(m_Config.Seed,coordinate,m_Config.Terrain,
+                m_Config.SampleSpacingMillimeters);
+        }
+
+    private:
+        ProceduralWorldConfig m_Config;
+        WorldStreamingRuntime m_Runtime;
+
+        static ProceduralWorldConfig Validate(ProceduralWorldConfig config)
+        {
+            detail::SeededHeightConfig{config.Terrain.Intervals,config.Terrain.LatticeSpacing,
+                config.Terrain.MinimumMillimeters,config.Terrain.MaximumMillimeters}.Validate();
+            if(config.SampleSpacingMillimeters==0||config.SampleSpacingMillimeters>1000000||
+                config.MaximumScannedCells==0||config.MaximumScannedCells>1000000)
+                throw std::invalid_argument("Invalid procedural cell spacing or scan budget.");
+            const auto n=static_cast<std::uint64_t>(config.Terrain.Intervals);
+            config.Streaming.CellSize=static_cast<double>(n)*config.SampleSpacingMillimeters/1000.0;
+            config.Streaming.Validate();
+            if(config.Streaming.KeepRadius>1.0e100)
+                throw std::invalid_argument("Procedural keep radius exceeds safe range.");
+            if(config.EstimatedResidentBytes==0)
+                config.EstimatedResidentBytes=(n+1u)*(n+1u)*sizeof(kairo::assets::MeshArtifactVertex)+
+                    6u*n*n*sizeof(std::uint32_t);
+            return config;
+        }
+
+        [[nodiscard]] std::string ContentKey(WorldCellCoordinate c) const
+        {
+            const auto& t=m_Config.Terrain;
+            return "procedural://heightfield/v1/"+std::to_string(m_Config.Seed)+"/"+
+                std::to_string(t.Intervals)+"/"+std::to_string(t.LatticeSpacing)+"/"+
+                std::to_string(t.MinimumMillimeters)+"/"+std::to_string(t.MaximumMillimeters)+"/"+
+                std::to_string(m_Config.SampleSpacingMillimeters)+"/"+
+                std::to_string(c.X)+"/"+std::to_string(c.Z);
+        }
+    };
+
 }
