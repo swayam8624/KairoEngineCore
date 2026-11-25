@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <optional>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -64,4 +65,47 @@ TEST_CASE("Phase 15 state deltas and replay hashes detect baseline and simulatio
     SaveRuntimeState(path,target);
     CHECK(LoadRuntimeState(path)==target);
     std::filesystem::remove(path);
+}
+
+TEST_CASE("runtime menu interaction routes pointer and keyboard to visible topmost controls")
+{
+    using namespace kairo::engine;
+    RuntimeUIScene ui;
+    RuntimeWidget root;root.ID="root";ui.Add(root);
+    RuntimeWidget a;a.ID="a";a.Parent="root";a.Kind=RuntimeWidgetKind::Button;
+    a.Anchors={.1,.1,.6,.5};a.Focusable=true;a.AccessibleLabelKey="a";a.Action="play";
+    ui.Add(a);
+    auto b=a;b.ID="b";b.ZOrder=5;b.Action="settings";ui.Add(b);
+    RuntimeUIInteraction input;
+    CHECK(ui.HitTest(20,20,100,100)==std::optional<std::string>{"b"});
+    input.PointerDown(ui,20,20,100,100);
+    CHECK(input.PointerUp(ui,20,20,100,100)==std::optional<std::string>{"settings"});
+    input.PointerDown(ui,20,20,100,100);
+    CHECK_FALSE(input.PointerUp(ui,99,99,100,100));
+    input.PointerDown(ui,20,20,100,100);input.Cancel();
+    CHECK_FALSE(input.PointerUp(ui,20,20,100,100));
+    input.Move(ui);CHECK(input.Confirm(ui)==std::optional<std::string>{"play"});
+    input.Move(ui,true);CHECK(input.Confirm(ui)==std::optional<std::string>{"settings"});
+    ui.SetEnabled("b",false);
+    CHECK_FALSE(input.Confirm(ui));
+    CHECK(ui.HitTest(20,20,100,100)==std::optional<std::string>{"a"});
+    input.Move(ui);CHECK(input.Confirm(ui)==std::optional<std::string>{"play"});
+    ui.SetVisible("root",false);
+    CHECK(ui.FocusOrder().empty());
+    CHECK_FALSE(ui.HitTest(20,20,100,100));
+    CHECK_FALSE(input.Confirm(ui));
+    CHECK_THROWS_AS(ui.Activate("a"),std::logic_error);
+}
+TEST_CASE("runtime layout handles deep hierarchies without recursive stack use")
+{
+    using namespace kairo::engine;
+    RuntimeUIScene ui;
+    for(unsigned i=0;i<4096;++i)
+    {
+        RuntimeWidget widget;widget.ID=std::to_string(i);
+        if(i)widget.Parent=std::to_string(i-1);
+        ui.Add(widget);
+    }
+    const auto rect=ui.Layout("4095",1920,1080);
+    CHECK(rect.Width==1920);CHECK(rect.Height==1080);
 }

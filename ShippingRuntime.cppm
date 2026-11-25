@@ -170,6 +170,9 @@ export namespace kairo::engine
         std::string AccessibleLabelKey;
         std::string Action;
         bool Focusable = false;
+        bool Visible = true;
+        bool Enabled = true;
+        std::int32_t ZOrder = 0;
     };
     struct RuntimePixelRect final { double X=0.0, Y=0.0, Width=0.0, Height=0.0; };
 
@@ -220,25 +223,110 @@ export namespace kairo::engine
         [[nodiscard]] RuntimePixelRect Layout(std::string_view id, double width, double height) const
         {
             if (!Finite(width)||!Finite(height)||width<=0.0||height<=0.0) throw std::invalid_argument("Runtime UI viewport is invalid.");
-            const auto& widget=m_Widgets.at(std::string(id)); RuntimePixelRect parent{0.0,0.0,width,height};
-            if (widget.Parent) parent=Layout(*widget.Parent,width,height);
-            return {parent.X+widget.Anchors.X*parent.Width,parent.Y+widget.Anchors.Y*parent.Height,
-                widget.Anchors.Width*parent.Width,widget.Anchors.Height*parent.Height};
+            // Walk ancestor anchors iteratively. Deep authored trees cannot
+            // exhaust the call stack; the chain is acyclic by Add's contract.
+            std::vector<const RuntimeWidget*> chain;
+            const RuntimeWidget* cursor=&m_Widgets.at(std::string(id));
+            for(;;)
+            {
+                chain.push_back(cursor);
+                if(!cursor->Parent)break;
+                cursor=&m_Widgets.at(*cursor->Parent);
+            }
+            RuntimePixelRect parent{0.0,0.0,width,height};
+            for(auto it=chain.rbegin();it!=chain.rend();++it)
+            {
+                const auto& a=(*it)->Anchors;
+                parent={parent.X+a.X*parent.Width,parent.Y+a.Y*parent.Height,
+                    a.Width*parent.Width,a.Height*parent.Height};
+            }
+            return parent;
         }
         [[nodiscard]] std::vector<std::string> FocusOrder() const
         {
-            std::vector<std::string> result; for(const auto& [id,w]:m_Widgets) if(w.Focusable) result.push_back(id); return result;
+            std::vector<std::string> result;
+            for(const auto& [id,w]:m_Widgets) if(w.Focusable&&IsInteractive(id)) result.push_back(id);
+            return result;
         }
         [[nodiscard]] std::string Text(std::string_view id,std::string_view locale) const
         { return m_Catalog.Resolve(locale,m_Widgets.at(std::string(id)).TextKey); }
         [[nodiscard]] std::string AccessibleLabel(std::string_view id,std::string_view locale) const
         { return m_Catalog.Resolve(locale,m_Widgets.at(std::string(id)).AccessibleLabelKey); }
+        void SetVisible(std::string_view id,bool visible){m_Widgets.at(std::string(id)).Visible=visible;}
+        void SetEnabled(std::string_view id,bool enabled){m_Widgets.at(std::string(id)).Enabled=enabled;}
+        [[nodiscard]] bool IsInteractive(std::string_view id) const
+        {
+            auto* cursor=&m_Widgets.at(std::string(id));
+            for(;;)
+            {
+                if(!cursor->Visible||!cursor->Enabled)return false;
+                if(!cursor->Parent)return true;
+                cursor=&m_Widgets.at(*cursor->Parent);
+            }
+        }
+        // Half-open pixel rectangles avoid ambiguous boundary ownership.
+        // Higher ZOrder wins; equal layers resolve by stable widget ID.
+        [[nodiscard]] std::optional<std::string> HitTest(double x,double y,double width,double height) const
+        {
+            if(!Finite(x)||!Finite(y)||!Finite(width)||!Finite(height)||width<=0||height<=0)
+                throw std::invalid_argument("Invalid runtime UI pointer or viewport.");
+            if(x<0||y<0||x>=width||y>=height)return {};
+            const RuntimeWidget* best=nullptr;
+            for(const auto& [id,w]:m_Widgets)
+            {
+                if(!w.Focusable||!IsInteractive(id))continue;
+                const auto r=Layout(id,width,height);
+                if(x>=r.X&&y>=r.Y&&x<r.X+r.Width&&y<r.Y+r.Height&&
+                    (!best||w.ZOrder>best->ZOrder||(w.ZOrder==best->ZOrder&&w.ID>best->ID)))
+                    best=&w;
+            }
+            return best?std::optional<std::string>{best->ID}:std::nullopt;
+        }
+        [[nodiscard]] std::optional<std::string> MoveFocus(std::optional<std::string> current,bool backwards=false) const
+        {
+            const auto order=FocusOrder();
+            if(order.empty())return {};
+            if(!current)return backwards?order.back():order.front();
+            const auto found=std::find(order.begin(),order.end(),*current);
+            if(found==order.end())return backwards?order.back():order.front();
+            const auto index=static_cast<std::size_t>(found-order.begin());
+            return order[(index+(backwards?order.size()-1:1))%order.size()];
+        }
         [[nodiscard]] std::string Activate(std::string_view id) const
-        { const auto& w=m_Widgets.at(std::string(id)); if(!w.Focusable||w.Action.empty()) throw std::logic_error("Runtime UI widget has no action."); return w.Action; }
+        { const auto& w=m_Widgets.at(std::string(id)); if(!w.Focusable||w.Action.empty()||!IsInteractive(id)) throw std::logic_error("Runtime UI widget has no active action."); return w.Action; }
     private:
         std::map<std::string,RuntimeWidget> m_Widgets;
         LocalizationCatalog m_Catalog;
         static bool Finite(double value) noexcept { return std::isfinite(value); }
+    };
+
+    // One controller per menu/UI surface. Press-release must land on the
+    // same still-interactive widget; cancellation never activates a control.
+    class RuntimeUIInteraction final
+    {
+    public:
+        [[nodiscard]] const std::optional<std::string>& Focus() const noexcept{return m_Focus;}
+        void Move(const RuntimeUIScene& ui,bool backwards=false){m_Focus=ui.MoveFocus(m_Focus,backwards);}
+        void PointerDown(const RuntimeUIScene& ui,double x,double y,double width,double height)
+        {
+            m_Pressed=ui.HitTest(x,y,width,height);
+            if(m_Pressed)m_Focus=m_Pressed;
+        }
+        [[nodiscard]] std::optional<std::string> PointerUp(const RuntimeUIScene& ui,double x,double y,double width,double height)
+        {
+            auto pressed=std::exchange(m_Pressed,{});
+            if(!pressed||ui.HitTest(x,y,width,height)!=pressed)return {};
+            return ui.Activate(*pressed);
+        }
+        [[nodiscard]] std::optional<std::string> Confirm(const RuntimeUIScene& ui) const
+        {
+            if(!m_Focus||!ui.IsInteractive(*m_Focus))return {};
+            return ui.Activate(*m_Focus);
+        }
+        void Cancel() noexcept{m_Pressed.reset();}
+        void Clear() noexcept{m_Pressed.reset();m_Focus.reset();}
+    private:
+        std::optional<std::string> m_Focus,m_Pressed;
     };
 
     using RuntimeStateValue = std::variant<bool,std::int64_t,double,std::string>;
