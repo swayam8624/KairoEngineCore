@@ -1,0 +1,22 @@
+name: Seeded terrain mesh contract
+on:
+  push:
+    branches: [main, feat/seeded-terrain-mesh]
+  pull_request:
+    paths:
+      - 'detail/SeededTerrainMesh.hpp'
+      - 'detail/SeededHeightfield.hpp'
+      - 'WorldStreaming.cppm'
+      - 'tests/SeededTerrainMeshTests.cpp'
+      - '.github/workflows/seeded-terrain-mesh.yml'
+permissions:
+  contents: read
+jobs:
+  geometry:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run seamless terrain geometry contract under sanitizers
+        run: |
+          g++ -std=c++23 -Wall -Wextra -Wpedantic -Werror -g -O1 -fsanitize=address,undefined -fno-omit-frame-pointer tests/SeededTerrainMeshTests.cpp -o /tmp/seeded-terrain-mesh-test
+          ASAN_OPTIONS=detect_leaks=1 UBSAN_OPTIONS=halt_on_error=1 /tmp/seeded-terrain-mesh-test

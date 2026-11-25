@@ -5,6 +5,7 @@
 #include <stdexcept>
 
 import Kairo.EngineCore.WorldStreaming;
+import Kairo.Assets.MeshArtifact;
 import Kairo.Foundation.Math.Vector;
 
 namespace
@@ -212,4 +213,29 @@ TEST_CASE("seeded terrain source exposes stable cell identity and shared borders
         CHECK(west.HeightsMillimeters[i*10+9]==east.HeightsMillimeters[i*10]);
     config.Intervals=0;
     CHECK_THROWS_AS(BuildSeededHeightfieldCell(42,{0,0},config),std::invalid_argument);
+}
+
+TEST_CASE("seeded terrain generates canonical renderable mesh artifacts")
+{
+    SeededHeightfieldConfig config;
+    config.Intervals=32;
+    const auto west=BuildSeededTerrainMeshCell(42,{-1,0},config,1000);
+    const auto east=BuildSeededTerrainMeshCell(42,{0,0},config,1000);
+    CHECK(west.Origin.x==-32.0);
+    CHECK(east.Origin.x==0.0);
+    REQUIRE(west.Mesh.Vertices.size()==1089);
+    REQUIRE(west.Mesh.Indices.size()==6144);
+    CHECK(west.Mesh.HasNormals);
+    CHECK(west.Mesh.HasTexCoords);
+    CHECK_NOTHROW(kairo::assets::ValidateMeshArtifactData(west.Mesh));
+    CHECK_NOTHROW(kairo::assets::ValidateMeshArtifactData(east.Mesh));
+    for(unsigned i=0;i<33;++i)
+    {
+        const auto& a=west.Mesh.Vertices[i*33+32];
+        const auto& b=east.Mesh.Vertices[i*33];
+        CHECK(a.Position[1]==b.Position[1]);
+        CHECK(a.Normal==b.Normal);
+        CHECK(west.Origin.x+a.Position[0]==east.Origin.x+b.Position[0]);
+    }
+    CHECK_THROWS_AS(BuildSeededTerrainMeshCell(42,{0,0},config,0),std::invalid_argument);
 }
