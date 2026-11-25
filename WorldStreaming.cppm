@@ -2,6 +2,7 @@ module;
 
 #include "detail/SeededHeightfield.hpp"
 #include "detail/SeededTerrainMesh.hpp"
+#include "detail/SeededTerrainSurface.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -10,6 +11,7 @@ module;
 #include <cstdint>
 #include <limits>
 #include <map>
+#include <optional>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -93,6 +95,29 @@ export namespace kairo::engine
         kairo::assets::ValidateMeshArtifactData(mesh);
         const double extent = static_cast<double>(config.Intervals)*sampleSpacingMillimeters/1000.0;
         return {coordinate,{coordinate.X*extent,0.0,coordinate.Z*extent},std::move(mesh)};
+    }
+
+    struct SeededTerrainSurfaceSample final
+    {
+        double HeightMeters;
+        kairo::foundation::math::Vec3d FaceNormal;
+    };
+
+    // Nominal double-precision triangle surface. GPU mesh coordinates are
+    // floats; tiny quantization differences are possible. This is a vertical
+    // surface query, not a swept collision or physics body.
+    [[nodiscard]] inline std::optional<SeededTerrainSurfaceSample> SampleSeededTerrainSurface(
+        std::uint64_t worldSeed,WorldCellCoordinate coordinate,
+        double localX,double localZ,const SeededHeightfieldConfig& config = {},
+        std::uint32_t sampleSpacingMillimeters = 1000u)
+    {
+        const auto sample=detail::QuerySeededTerrainSurface(worldSeed,coordinate.X,coordinate.Z,
+            {config.Intervals,config.LatticeSpacing,
+             config.MinimumMillimeters,config.MaximumMillimeters},
+             sampleSpacingMillimeters,localX,localZ);
+        if(!sample) return std::nullopt;
+        return SeededTerrainSurfaceSample{sample->HeightMeters,
+            {sample->Normal[0],sample->Normal[1],sample->Normal[2]}};
     }
 
     enum class WorldCellState : std::uint8_t
