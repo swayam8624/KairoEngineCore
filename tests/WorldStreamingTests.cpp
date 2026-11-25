@@ -349,3 +349,18 @@ TEST_CASE("procedural terrain runtime owns only resident CPU meshes")
     CHECK(terrain.ResidentCells().empty());
     CHECK(terrain.Streaming().Runtime().CommittedBytes()==0);
 }
+
+TEST_CASE("seeded terrain LOD uses canonical assets without changing the world origin")
+{
+    const SeededHeightfieldConfig config;
+    const auto fine=BuildSeededTerrainMeshCell(42,{-5,7},config);
+    const auto exact=BuildSeededTerrainLodMeshCell(42,{-5,7},config,1000,1);
+    const auto coarse=BuildSeededTerrainLodMeshCell(42,{-5,7},config,1000,8);
+    CHECK(exact.Mesh==fine.Mesh);
+    CHECK(coarse.Origin.x==fine.Origin.x);
+    CHECK(coarse.Origin.z==fine.Origin.z);
+    CHECK(coarse.Coordinate==fine.Coordinate);
+    REQUIRE(coarse.Mesh.Indices.size()==504);
+    CHECK_NOTHROW(kairo::assets::ValidateMeshArtifactData(coarse.Mesh));
+    CHECK_THROWS_AS(BuildSeededTerrainLodMeshCell(42,{0,0},config,1000,3),std::invalid_argument);
+}
