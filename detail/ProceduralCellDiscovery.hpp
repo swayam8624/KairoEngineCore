@@ -19,7 +19,7 @@ namespace kairo::engine::detail
     DiscoverProceduralCells(double cellSize,double loadRadius,
         const Observers& observers,std::size_t maximumScannedCells)
     {
-        if (!std::isfinite(cellSize)||cellSize<=0 ||
+        if (!std::isfinite(cellSize)||cellSize<0.001||cellSize>1.0e6 ||
             !std::isfinite(loadRadius)||loadRadius<0 || maximumScannedCells==0)
             throw std::invalid_argument("Invalid procedural cell discovery limits.");
         using Coordinate=std::pair<std::int32_t,std::int32_t>;
@@ -33,7 +33,8 @@ namespace kairo::engine::detail
             const double x=observer.Position.x,z=observer.Position.z;
             if(!std::isfinite(x)||!std::isfinite(z)||
                 !std::isfinite(observer.RadiusScale)||observer.RadiusScale<=0 ||
-                !std::isfinite(radius))
+                !std::isfinite(radius)||radius>1.0e100||
+                std::abs(x)>1.0e100||std::abs(z)>1.0e100)
                 throw std::invalid_argument("Invalid procedural observer.");
             // Expand by one grid index to include touching cells at exact
             // boundaries (closed AABB), and guard quotient rounding.
@@ -63,8 +64,8 @@ namespace kairo::engine::detail
                     const double dx=x<minX?minX-x:x>maxX?x-maxX:0.0;
                     const double dz=z<minZ?minZ-z:z>maxZ?z-maxZ:0.0;
                     // Same closed-AABB distance criterion as residency
-                    // planner. Restrict numerical domain at the public
-                    // wrapper to avoid squared-distance overflow.
+                    // planner. The bounded numerical domain above prevents
+                    // squared-distance overflow.
                     if(dx*dx+dz*dz<=radius*radius)
                         result.emplace(static_cast<std::int32_t>(cx),static_cast<std::int32_t>(cz));
                 }
