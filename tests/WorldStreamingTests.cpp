@@ -193,3 +193,23 @@ TEST_CASE("world streaming validates descriptors observers and budgets")
     badConfig.KeepRadius = badConfig.LoadRadius - 1.0;
     CHECK_THROWS_AS(WorldStreamingRuntime(badConfig), std::invalid_argument);
 }
+
+TEST_CASE("seeded terrain source exposes stable cell identity and shared borders")
+{
+    CHECK(SeededHeightfieldVersion == 1u);
+    CHECK(DeriveWorldCellSeed(42, {-1,2}) == 0xedccb03e681c4045ull);
+    CHECK(DeriveWorldCellSeed(42, {-1,2},1) == 0x125927930b943431ull);
+    SeededHeightfieldConfig config;
+    config.Intervals=9;
+    config.LatticeSpacing=4;
+    const auto west=BuildSeededHeightfieldCell(42,{-1,0},config);
+    const auto east=BuildSeededHeightfieldCell(42,{0,0},config);
+    CHECK((west.Coordinate==WorldCellCoordinate{-1,0}));
+    REQUIRE(west.Intervals==9);
+    REQUIRE(west.HeightsMillimeters.size()==100);
+    REQUIRE(east.HeightsMillimeters.size()==100);
+    for(unsigned i=0;i<10;++i)
+        CHECK(west.HeightsMillimeters[i*10+9]==east.HeightsMillimeters[i*10]);
+    config.Intervals=0;
+    CHECK_THROWS_AS(BuildSeededHeightfieldCell(42,{0,0},config),std::invalid_argument);
+}
