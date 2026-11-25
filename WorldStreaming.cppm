@@ -3,6 +3,7 @@ module;
 #include "detail/SeededHeightfield.hpp"
 #include "detail/SeededTerrainMesh.hpp"
 #include "detail/SeededTerrainLod.hpp"
+#include "detail/SeededTerrainLodError.hpp"
 #include "detail/TerrainLodSelection.hpp"
 #include "detail/SeededTerrainSurface.hpp"
 #include "detail/ProceduralCellDiscovery.hpp"
@@ -116,6 +117,45 @@ export namespace kairo::engine
         kairo::assets::ValidateMeshArtifactData(mesh);
         const double extent=static_cast<double>(config.Intervals)*sampleSpacingMillimeters/1000.0;
         return {coordinate,{coordinate.X*extent,0.0,coordinate.Z*extent},std::move(mesh)};
+    }
+
+    // Exact rounded-up maximum vertical error of the nominal LOD mesh
+    // relative to the full-resolution triangulated heightfield, in mm.
+    // Does not include GPU quantization or screen-space projection error.
+    [[nodiscard]] inline std::uint64_t MeasureSeededTerrainLodErrorMillimeters(
+        std::uint64_t worldSeed,WorldCellCoordinate coordinate,
+        const SeededHeightfieldConfig& config={},std::uint32_t stride=1u)
+    {
+        return detail::MeasureSeededTerrainLodError(worldSeed,coordinate.X,coordinate.Z,
+            {config.Intervals,config.LatticeSpacing,config.MinimumMillimeters,config.MaximumMillimeters},
+            stride);
+    }
+
+    struct TerrainLodErrorChoice final
+    {
+        std::uint32_t Stride=1u;
+        std::uint64_t MaximumErrorMillimeters=0u;
+    };
+
+    // Select the coarsest supported mesh under a geometric error ceiling.
+    // Do not assume that errors are monotonic across different fan layouts.
+    // Intended for preprocessing or background jobs, not every frame.
+    [[nodiscard]] inline TerrainLodErrorChoice ChooseSeededTerrainLodUnderError(
+        std::uint64_t worldSeed,WorldCellCoordinate coordinate,
+        const SeededHeightfieldConfig& config,std::uint32_t maximumStride,
+        std::uint64_t maximumErrorMillimeters)
+    {
+        detail::SeededHeightConfig{config.Intervals,config.LatticeSpacing,
+            config.MinimumMillimeters,config.MaximumMillimeters}.Validate();
+        if(maximumStride==0||(maximumStride&(maximumStride-1u))!=0||
+            config.Intervals%maximumStride!=0)
+            throw std::invalid_argument("Invalid maximum terrain LOD stride.");
+        for(auto stride=maximumStride;stride>1u;stride/=2u)
+        {
+            const auto error=MeasureSeededTerrainLodErrorMillimeters(worldSeed,coordinate,config,stride);
+            if(error<=maximumErrorMillimeters)return {stride,error};
+        }
+        return {};
     }
 
     struct SeededTerrainSurfaceSample final
