@@ -2,6 +2,7 @@ module;
 
 #include "detail/SeededHeightfield.hpp"
 #include "detail/SeededTerrainMesh.hpp"
+#include "detail/SeededTerrainLod.hpp"
 #include "detail/SeededTerrainSurface.hpp"
 #include "detail/ProceduralCellDiscovery.hpp"
 #include "detail/ProceduralTerrainStore.hpp"
@@ -97,6 +98,22 @@ export namespace kairo::engine
         // rather than publishing a noncanonical renderer/asset payload.
         kairo::assets::ValidateMeshArtifactData(mesh);
         const double extent = static_cast<double>(config.Intervals)*sampleSpacingMillimeters/1000.0;
+        return {coordinate,{coordinate.X*extent,0.0,coordinate.Z*extent},std::move(mesh)};
+    }
+
+    // Rendering approximation only. Physics/grounding queries retain the
+    // full-resolution canonical terrain surface regardless of this stride.
+    [[nodiscard]] inline SeededTerrainMeshCell BuildSeededTerrainLodMeshCell(
+        std::uint64_t worldSeed,WorldCellCoordinate coordinate,
+        const SeededHeightfieldConfig& config={},std::uint32_t sampleSpacingMillimeters=1000u,
+        std::uint32_t stride=1u)
+    {
+        auto mesh=detail::GenerateSeededTerrainLod<kairo::assets::MeshArtifactData>(
+            worldSeed,coordinate.X,coordinate.Z,
+            {config.Intervals,config.LatticeSpacing,config.MinimumMillimeters,config.MaximumMillimeters},
+            sampleSpacingMillimeters,stride);
+        kairo::assets::ValidateMeshArtifactData(mesh);
+        const double extent=static_cast<double>(config.Intervals)*sampleSpacingMillimeters/1000.0;
         return {coordinate,{coordinate.X*extent,0.0,coordinate.Z*extent},std::move(mesh)};
     }
 
