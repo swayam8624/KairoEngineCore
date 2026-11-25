@@ -1,4 +1,6 @@
 #include <cmath>
+#include <limits>
+#include <stdexcept>
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -59,4 +61,45 @@ TEST_CASE("Particle cloth fluid and streaming systems advance bounded state")
     CHECK(streamer.Loaded().size() == 9u);
     streamer.Update(250.0,0.0);
     CHECK(streamer.Loaded().contains({2,0}));
+}
+
+TEST_CASE("particle bursts are deterministic, bounded and leave state unchanged on rejection")
+{
+    using namespace kairo::engine;
+    ParticleEmitter a(128),b(128);
+    ParticleBurst burst;burst.Origin={1,2,3};burst.BaseVelocity={0,2,0};
+    burst.Count=128;burst.Seed=1923;
+    a.EmitBurst(burst);b.EmitBurst(burst);
+    REQUIRE(a.Particles().size()==128);
+    for(std::size_t i=0;i<128;++i)
+    {
+        const auto& x=a.Particles()[i];const auto& y=b.Particles()[i];
+        CHECK(x.Velocity.X==y.Velocity.X);CHECK(x.Velocity.Y==y.Velocity.Y);
+        CHECK(x.Velocity.Z==y.Velocity.Z);CHECK(x.RemainingLife==y.RemainingLife);
+        CHECK(x.RemainingLife>=.25);CHECK(x.RemainingLife<=1.);
+    }
+    const auto retained=a.Particles()[64];
+    burst.Count=64;burst.Seed=4;a.EmitBurst(burst);
+    REQUIRE(a.Particles().size()==128);
+    CHECK(a.Particles().front().Velocity.X==retained.Velocity.X);
+    burst.Count=129;
+    CHECK_THROWS_AS(a.EmitBurst(burst),std::invalid_argument);
+    CHECK(a.Particles().size()==128);
+    a.Update(1.);
+    CHECK(a.Particles().empty());
+}
+TEST_CASE("invalid particle values and integration overflow are rejected")
+{
+    using namespace kairo::engine;
+    ParticleEmitter emitter(4);
+    const auto inf=std::numeric_limits<double>::infinity();
+    CHECK_THROWS_AS(emitter.Emit({{inf,0,0},{},1.}),std::invalid_argument);
+    const auto max=std::numeric_limits<double>::max();
+    emitter.Emit({{max,0,0},{max,0,0},4.});
+    CHECK_THROWS_AS(emitter.Update(2.),std::overflow_error);
+    REQUIRE(emitter.Particles().size()==1);
+    CHECK(emitter.Particles()[0].Position.X==max);
+    CHECK(emitter.Particles()[0].RemainingLife==4.);
+    emitter.Update(4.);
+    CHECK(emitter.Particles().empty());
 }

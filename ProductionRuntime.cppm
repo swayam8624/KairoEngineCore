@@ -94,6 +94,13 @@ export namespace kairo::engine
             m_Profile.PeakParticles = std::max(m_Profile.PeakParticles, m_Particles->Particles().size());
         }
 
+        void EmitParticleBurst(const ParticleBurst& burst)
+        {
+            if(!m_Particles)throw std::logic_error("Production particle system is not configured.");
+            m_Particles->EmitBurst(burst);
+            m_Profile.PeakParticles=std::max(m_Profile.PeakParticles,m_Particles->Particles().size());
+        }
+
         std::size_t AddClothParticle(ClothParticle particle)
         {
             if (!m_Cloth || !m_Manifest.Cloth)

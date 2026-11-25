@@ -149,32 +149,94 @@ export namespace kairo::engine
         double RemainingLife = 0.0;
     };
 
+    struct ParticleBurst final
+    {
+        ProductionVec3 Origin{};
+        ProductionVec3 BaseVelocity{};
+        double SpeedSpread=1.0;
+        double MinimumLifetime=.25;
+        double MaximumLifetime=1.0;
+        std::size_t Count=16u;
+        std::uint64_t Seed=0u;
+    };
+
     class ParticleEmitter final
     {
     public:
         explicit ParticleEmitter(std::size_t capacity = 4096u) : m_Capacity(capacity)
-        { if (capacity == 0u) throw std::invalid_argument("Particle capacity cannot be zero."); }
+        {
+            if (capacity == 0u||capacity>1'000'000u)
+                throw std::invalid_argument("Particle capacity is outside supported range.");
+        }
         void Emit(Particle particle)
         {
-            if (!std::isfinite(particle.RemainingLife) || particle.RemainingLife <= 0.0)
-                throw std::invalid_argument("Particle lifetime must be positive and finite.");
+            Validate(particle);
             if (m_Particles.size() >= m_Capacity) m_Particles.erase(m_Particles.begin());
             m_Particles.push_back(particle);
+        }
+        // A bounded deterministic burst preserves newest-first eviction
+        // semantics while removing old entries at most once per burst.
+        // Build the candidate separately so invalid or overflowing input
+        // never changes the live particle store.
+        void EmitBurst(const ParticleBurst& burst)
+        {
+            if(!Finite(burst.Origin)||!Finite(burst.BaseVelocity)||!std::isfinite(burst.SpeedSpread)||
+                burst.SpeedSpread<0||burst.SpeedSpread>1e6||!std::isfinite(burst.MinimumLifetime)||
+                !std::isfinite(burst.MaximumLifetime)||burst.MinimumLifetime<=0||
+                burst.MaximumLifetime<burst.MinimumLifetime||burst.Count>m_Capacity)
+                throw std::invalid_argument("Invalid or over-budget particle burst.");
+            if(!burst.Count)return;
+            std::vector<Particle> candidate;
+            const auto retained=std::min(m_Particles.size(),m_Capacity-burst.Count);
+            candidate.reserve(retained+burst.Count);
+            candidate.insert(candidate.end(),m_Particles.end()-static_cast<std::ptrdiff_t>(retained),m_Particles.end());
+            auto seed=burst.Seed;
+            const auto unit=[&seed]()
+            {
+                seed=seed*6364136223846793005ULL+1442695040888963407ULL;
+                return static_cast<double>(seed>>11u)/9007199254740992.0;
+            };
+            for(std::size_t i=0;i<burst.Count;++i)
+            {
+                Particle p{burst.Origin,
+                    {burst.BaseVelocity.X+(unit()*2.-1.)*burst.SpeedSpread,
+                     burst.BaseVelocity.Y+(unit()*2.-1.)*burst.SpeedSpread,
+                     burst.BaseVelocity.Z+(unit()*2.-1.)*burst.SpeedSpread},
+                    burst.MinimumLifetime+unit()*(burst.MaximumLifetime-burst.MinimumLifetime)};
+                Validate(p);candidate.push_back(p);
+            }
+            m_Particles=std::move(candidate);
         }
         void Update(double dt)
         {
             if (!std::isfinite(dt) || dt < 0.0) throw std::invalid_argument("Particle delta is invalid.");
-            for (auto& p : m_Particles)
+            // Check every survivor before touching live state. Dead particles
+            // need no integration; huge elapsed time cannot produce Inf in
+            // an already-expired particle or corrupt surviving positions.
+            for(const auto& p:m_Particles)if(dt<p.RemainingLife)
             {
-                p.Position.X += p.Velocity.X*dt; p.Position.Y += p.Velocity.Y*dt; p.Position.Z += p.Velocity.Z*dt;
-                p.RemainingLife -= dt;
+                const ProductionVec3 next{p.Position.X+p.Velocity.X*dt,
+                    p.Position.Y+p.Velocity.Y*dt,p.Position.Z+p.Velocity.Z*dt};
+                if(!Finite(next))throw std::overflow_error("Particle position overflow.");
             }
-            std::erase_if(m_Particles, [](const Particle& p) { return p.RemainingLife <= 0.0; });
+            std::erase_if(m_Particles,[dt](const Particle& p){return dt>=p.RemainingLife;});
+            for(auto& p:m_Particles)
+            {
+                p.Position.X+=p.Velocity.X*dt;p.Position.Y+=p.Velocity.Y*dt;p.Position.Z+=p.Velocity.Z*dt;
+                p.RemainingLife-=dt;
+            }
         }
         [[nodiscard]] const std::vector<Particle>& Particles() const noexcept { return m_Particles; }
     private:
         std::size_t m_Capacity;
         std::vector<Particle> m_Particles;
+        static bool Finite(ProductionVec3 p) noexcept
+        {return std::isfinite(p.X)&&std::isfinite(p.Y)&&std::isfinite(p.Z);}
+        static void Validate(const Particle& p)
+        {
+            if(!Finite(p.Position)||!Finite(p.Velocity)||!std::isfinite(p.RemainingLife)||p.RemainingLife<=0)
+                throw std::invalid_argument("Particle position, velocity or lifetime is invalid.");
+        }
     };
 
     struct ClothParticle final

@@ -93,3 +93,18 @@ TEST_CASE("production system manifest saves and reopens as project-owned config"
     CHECK(SerializeProductionSystemsManifest(restored) == SerializeProductionSystemsManifest(manifest));
     std::filesystem::remove_all(root);
 }
+
+TEST_CASE("production runtime exposes bounded particle bursts through its existing profile")
+{
+    using namespace kairo::engine;
+    ProductionSystemsManifest manifest;
+    manifest.Particles=ProductionParticleDescriptor{64u};
+    ProductionRuntime runtime(manifest);
+    ParticleBurst burst;burst.Count=32;burst.Seed=9;
+    runtime.EmitParticleBurst(burst);
+    REQUIRE(runtime.Particles()!=nullptr);
+    CHECK(runtime.Particles()->Particles().size()==32);
+    CHECK(runtime.Profile().PeakParticles==32);
+    runtime.Step(1.,0.,0.);
+    CHECK(runtime.Particles()->Particles().empty());
+}
