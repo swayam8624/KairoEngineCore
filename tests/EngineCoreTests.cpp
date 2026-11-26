@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <array>
+#include <variant>
 import Kairo.EngineCore;
 import Kairo.Foundation.Math.Vector;
 import Kairo.Reflection;
@@ -90,6 +92,52 @@ TEST_CASE("Logic bytecode round trips and executes through bounded host calls",
     REQUIRE_THROWS_AS(runaway.Dispatch({ 1u }, { .Event = LogicEventKind::Tick,
         .Action = {}, .DeltaSeconds = 1.0 / 60.0, .ActionValue = 0.0,
         .OtherEntity = {} }, host, 32u), std::runtime_error);
+}
+
+TEST_CASE("Logic tracing observes actual branch order and register values without altering host effects",
+    "[KairoEngineCore][Logic][Trace]")
+{
+    struct Trace final:LogicTraceObserver
+    {
+        std::array<std::uint32_t,16> PCs{};
+        std::array<double,16> Values{};
+        std::size_t Count=0;
+        void BeforeInstruction(Entity,const LogicDispatch&,std::uint32_t pc,
+            const LogicInstruction&,std::span<const LogicRegisterValue> registers) noexcept override
+        {
+            if(Count>=PCs.size())return;
+            PCs[Count]=pc;
+            if(const auto* v=std::get_if<double>(&registers[4]))Values[Count]=*v;
+            ++Count;
+        }
+    } trace;
+    LogicProgram program;
+    program.RegisterCount=5;
+    program.Floats={7.0};
+    program.Strings={"unreachable","reached"};
+    program.Instructions={{LogicOpcode::LoadBoolean,3,0},{LogicOpcode::JumpIfFalse,3,3},
+        {LogicOpcode::Print,0},{LogicOpcode::LoadFloat,4,0},{LogicOpcode::Print,1},{LogicOpcode::Halt}};
+    program.Entries={{LogicEventKind::BeginPlay,{},0}};
+    LogicInstance observed(program),plain(program);
+    RecordingLogicHost a,b;
+    const LogicDispatch event{.Event=LogicEventKind::BeginPlay,.Action={},.DeltaSeconds=0,
+        .ActionValue=0,.OtherEntity={}};
+    CHECK(observed.Dispatch({1},event,a,32,&trace)==plain.Dispatch({1},event,b,32));
+    CHECK(a.Messages==b.Messages);
+    REQUIRE(trace.Count==5);
+    CHECK(trace.PCs[0]==0);
+    CHECK(trace.PCs[1]==1);
+    CHECK(trace.PCs[2]==3);
+    CHECK(trace.PCs[3]==4);
+    CHECK(trace.PCs[4]==5);
+    CHECK(trace.Values[3]==7);
+    CHECK(trace.Values[4]==7);
+    LogicProgram runaway=program;
+    runaway.Instructions={{LogicOpcode::Jump,0}};
+    LogicInstance loop(runaway);
+    trace.Count=0;
+    CHECK_THROWS_AS(loop.Dispatch({1},event,a,4,&trace),std::runtime_error);
+    CHECK(trace.Count==4);
 }
 
 TEST_CASE("Compiled logic artifacts bind bytecode to exact source identity",
