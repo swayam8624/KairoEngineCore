@@ -191,6 +191,21 @@ export namespace kairo::engine
             const kairo::foundation::math::Vec3d& impulse) = 0;
     };
 
+    using LogicRegisterValue = std::variant<std::monostate, bool, double,
+        kairo::foundation::math::Vec3d, Entity>;
+
+    // A borrowed, synchronous pre-instruction view; implementations must
+    // not retain the register span, mutate VM state, or throw. No callback
+    // or register copy is performed in normal, unobserved execution.
+    class LogicTraceObserver
+    {
+    public:
+        virtual ~LogicTraceObserver() = default;
+        virtual void BeforeInstruction(Entity owner, const LogicDispatch& dispatch,
+            std::uint32_t pc, const LogicInstruction& instruction,
+            std::span<const LogicRegisterValue> registers) noexcept = 0;
+    };
+
     class LogicInstance final
     {
     public:
@@ -203,7 +218,8 @@ export namespace kairo::engine
         }
 
         [[nodiscard]] std::size_t Dispatch(Entity owner, const LogicDispatch& dispatch,
-            LogicHost& host, std::size_t instructionBudget = DefaultInstructionBudget)
+            LogicHost& host, std::size_t instructionBudget = DefaultInstructionBudget,
+            LogicTraceObserver* observer = nullptr)
         {
             if (!owner) throw std::invalid_argument("Logic dispatch owner cannot be zero.");
             if (!std::isfinite(dispatch.DeltaSeconds) || dispatch.DeltaSeconds < 0.0 ||
@@ -222,14 +238,13 @@ export namespace kairo::engine
                 m_Registers[0] = dispatch.DeltaSeconds;
                 m_Registers[1] = dispatch.ActionValue;
                 m_Registers[2] = dispatch.OtherEntity;
-                Execute(owner, entry.InstructionOffset, host, instructionBudget, executed);
+                Execute(owner, entry.InstructionOffset, host, instructionBudget, executed, dispatch, observer);
             }
             return executed;
         }
 
     private:
-        using LogicValue = std::variant<std::monostate, bool, double,
-            kairo::foundation::math::Vec3d, Entity>;
+        using LogicValue = LogicRegisterValue;
         LogicProgram m_Program;
         std::vector<LogicValue> m_Registers;
 
@@ -244,14 +259,17 @@ export namespace kairo::engine
         }
 
         void Execute(Entity owner, std::uint32_t start, LogicHost& host,
-            std::size_t budget, std::size_t& executed)
+            std::size_t budget, std::size_t& executed,const LogicDispatch& dispatch,
+            LogicTraceObserver* observer)
         {
             std::uint32_t pc = start;
             while (true)
             {
                 if (executed >= budget)
                     throw std::runtime_error("Logic dispatch exceeded its instruction budget.");
-                const LogicInstruction instruction = m_Program.Instructions.at(pc++);
+                const LogicInstruction instruction = m_Program.Instructions.at(pc);
+                if(observer)observer->BeforeInstruction(owner,dispatch,pc,instruction,m_Registers);
+                ++pc;
                 ++executed;
                 switch (instruction.Opcode)
                 {
